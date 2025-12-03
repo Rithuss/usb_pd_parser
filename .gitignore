@@ -80,8 +80,6 @@ Thumbs.db
 # Keep input PDFs in version control for now
 # data/input/*.pdf
 
-# Output files (can be regenerated)
-data/output/*.jsonl
 
 # Temporary files
 *.tmp
