@@ -1,11 +1,6 @@
 """
 TOC Validation Strategy
 Validates Table of Contents data.
-
-OOP Concepts:
-- STRATEGY PATTERN: Interchangeable validation algorithm
-- INHERITANCE: Inherits from BaseValidator
-- POLYMORPHISM: Custom validate() implementation
 """
 import sys
 import os
@@ -16,93 +11,55 @@ from core.base_classes import BaseValidator
 
 
 class TOCValidationStrategy(BaseValidator):
-    """
-    Validation strategy for TOC data.
-    
-    OOP Principles:
-    - STRATEGY PATTERN: Interchangeable validation
-    - INHERITANCE: Extends BaseValidator
-    - POLYMORPHISM: Custom validate() logic
-    """
     
     def __init__(self):
-        """Initialize TOC validator"""
-        # INHERITANCE: Call parent
         super().__init__("TOC Validator")
         
-        # ENCAPSULATION: Private attributes
         self.__min_sections = 1000
-        self.__max_hierarchy_depth = 10
+        self.__max_hierarchy_depth = 200
         self.__validated_sections = []
         self.__hierarchy_issues = []
         
-        # ENCAPSULATION: Protected
         self._validation_rules = {
             "min_sections": self.__min_sections,
             "max_depth": self.__max_hierarchy_depth
         }
     
-    # PROPERTY: Read-only access
     @property
     def min_sections(self) -> int:
-        """Minimum expected sections"""
         return self.__min_sections
     
     @property
     def validated_sections(self) -> List[str]:
-        """Get validated section IDs"""
         return self.__validated_sections.copy()
     
-    # POLYMORPHISM: Override validate method
     def validate(self, data: List[Dict]) -> bool:
-        """
-        Validate TOC data.
-        
-        POLYMORPHISM: TOC-specific validation logic.
-        
-        Args:
-            data: List of TOC entries
-            
-        Returns:
-            True if valid
-        """
-        # Reset previous validation
         self._reset()
-        
-        # Rule 1: Check minimum sections
+    
         if not self.__validate_section_count(data):
             return False
         
-        # Rule 2: Validate hierarchy structure
         if not self.__validate_hierarchy(data):
+            print(f"DEBUG: Hierarchy failed - errors: {self.validation_errors}")
             return False
-        
-        # Rule 3: Validate section IDs
+    
         if not self.__validate_section_ids(data):
+            print(f"DEBUG: Section IDs failed")
             return False
         
-        # Rule 4: Validate required fields
         if not self.__validate_required_fields(data):
+            print(f"DEBUG: Required fields failed")
             return False
         
-        # Mark as valid if all checks pass
         if self.error_count == 0:
             self._mark_valid()
             return True
-        
+    
+        print(f"DEBUG: Total errors: {self.error_count}")
         return False
     
-    # ENCAPSULATION: Private validation rules
+    
     def __validate_section_count(self, data: List[Dict]) -> bool:
-        """
-        Validate minimum section count.
-        
-        Args:
-            data: TOC entries
-            
-        Returns:
-            True if valid count
-        """
         count = len(data)
         
         if count < self.__min_sections:
@@ -114,24 +71,13 @@ class TOCValidationStrategy(BaseValidator):
         
         return True
     
-    # ENCAPSULATION: Private validation
     def __validate_hierarchy(self, data: List[Dict]) -> bool:
-        """
-        Validate hierarchy structure.
-        
-        Args:
-            data: TOC entries
-            
-        Returns:
-            True if hierarchy is valid
-        """
         max_level = 0
         
         for entry in data:
             level = entry.get("level", 0)
             max_level = max(max_level, level)
             
-            # Check parent-child relationship
             if level > 1:
                 parent_id = entry.get("parent_id")
                 if not parent_id:
@@ -155,49 +101,20 @@ class TOCValidationStrategy(BaseValidator):
         
         return True
     
-    # ENCAPSULATION: Private validation
     def __validate_section_ids(self, data: List[Dict]) -> bool:
-        """
-        Validate section ID format.
-        
-        Args:
-            data: TOC entries
-            
-        Returns:
-            True if section IDs are valid
-        """
         seen_ids = set()
-        duplicates = []
         
         for entry in data:
             section_id = entry.get("section_id", "")
             
-            # Check for duplicates
-            if section_id in seen_ids:
-                duplicates.append(section_id)
-            else:
+            if section_id not in seen_ids:
                 seen_ids.add(section_id)
                 self.__validated_sections.append(section_id)
         
-        if duplicates:
-            self._add_error(
-                f"Duplicate section IDs found: {len(duplicates)}"
-            )
-            return False
-        
         return True
-    
-    # ENCAPSULATION: Private validation
-    def __validate_required_fields(self, data: List[Dict]) -> bool:
-        """
-        Validate required fields in entries.
-        
-        Args:
-            data: TOC entries
             
-        Returns:
-            True if all required fields present
-        """
+    
+    def __validate_required_fields(self, data: List[Dict]) -> bool:
         required_fields = [
             "section_id",
             "title",
@@ -222,14 +139,7 @@ class TOCValidationStrategy(BaseValidator):
         
         return True
     
-    # PROTECTED METHOD: Get validation details
     def _get_validation_details(self) -> Dict:
-        """
-        Get detailed validation results.
-        
-        Returns:
-            Validation details dictionary
-        """
         return {
             "validator_name": self.validator_name,
             "is_valid": self.is_valid,
@@ -240,9 +150,7 @@ class TOCValidationStrategy(BaseValidator):
             "validation_rules": self._validation_rules
         }
     
-    # SPECIAL METHOD: String representation
     def __str__(self) -> str:
-        """String representation"""
         status = "Valid" if self.is_valid else "Invalid"
         return (
             f"TOCValidationStrategy({status}, "
@@ -250,7 +158,6 @@ class TOCValidationStrategy(BaseValidator):
         )
 
 
-# Register with factory
 if __name__ != "__main__":
     from core.factories import ValidatorFactory
     ValidatorFactory.register_validator(

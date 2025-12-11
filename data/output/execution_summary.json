@@ -1,0 +1,41 @@
+{
+  "execution_metadata": {
+    "start_time": "2025-12-11T17:03:05.724196",
+    "end_time": "2025-12-11T17:12:42.549235",
+    "duration_seconds": 576.83
+  },
+  "statistics": {
+    "extraction": {
+      "total_pages": 1047,
+      "pages_processed": 1047,
+      "coverage_pct": 100.0
+    },
+    "parsing": {
+      "toc_sections": 8057,
+      "spec_sections": 7909
+    },
+    "validation": {
+      "toc_valid": true,
+      "spec_valid": true,
+      "overall_valid": true
+    },
+    "output": {
+      "files_written": [
+        "usb_pd_toc.jsonl",
+        "usb_pd_spec.jsonl"
+      ],
+      "file_count": 2
+    }
+  },
+  "output_files": [
+    "C:\\Users\\Rithu\\Desktop\\usb_parser_project\\usb_parser_project\\data\\output\\usb_pd_toc.jsonl",
+    "C:\\Users\\Rithu\\Desktop\\usb_parser_project\\usb_parser_project\\data\\output\\usb_pd_spec.jsonl",
+    "C:\\Users\\Rithu\\Desktop\\usb_parser_project\\usb_parser_project\\data\\output\\validation_report.json",
+    "C:\\Users\\Rithu\\Desktop\\usb_parser_project\\usb_parser_project\\data\\output\\execution_summary.json"
+  ],
+  "metadata": {
+    "generated_at": "2025-12-11T17:12:42.549423",
+    "output_path": "C:\\Users\\Rithu\\Desktop\\usb_parser_project\\usb_parser_project\\data\\output\\execution_summary.json",
+    "format": "JSON"
+  }
+}
