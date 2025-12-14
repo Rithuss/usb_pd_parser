@@ -1,12 +1,13 @@
 """
 USB PD Parser Orchestrator - REFACTORED
+Fixed: initialize() from 68 lines to 11 lines
 """
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pdfplumber
-from typing import Dict, List, Optional
+from typing import Dict, List
 from pathlib import Path
 from datetime import datetime
 
@@ -20,7 +21,6 @@ from strategies.spec_validation_strategy import SpecValidationStrategy
 
 
 class ProgressTracker:
-    
     def __init__(self):
         self.steps_total = 7
         self.steps_completed = 0
@@ -38,7 +38,6 @@ class ProgressTracker:
 
 
 class StatisticsCollector:
-    
     def __init__(self):
         self.stats = {
             "extraction": {},
@@ -78,7 +77,6 @@ class StatisticsCollector:
 
 
 class ComponentRegistry:
-    
     @staticmethod
     def register_all():
         ParserFactory.register_parser("toc", USBPDTOCParser)
@@ -90,34 +88,26 @@ class ComponentRegistry:
 
 
 class PDFTextExtractor:
-    
     def __init__(self, pdf_path: str):
         self.pdf_path = pdf_path
         self.total_pages = 0
         self.pages_processed = 0
     
     def extract(self) -> Dict[int, str]:
-        text_data = {}
-        
         with pdfplumber.open(self.pdf_path) as pdf:
             self.total_pages = len(pdf.pages)
             print(f"Total pages: {self.total_pages}")
-            
             text_data = self._extract_pages(pdf)
         
-        coverage = (self.pages_processed / self.total_pages * 100)
-        print(f"\n✓ Extraction Complete:")
-        print(f"  Pages processed: {self.pages_processed}")
-        print(f"  Coverage: {coverage:.1f}%")
-        
+        self._print_summary()
         return text_data
     
     def _extract_pages(self, pdf) -> Dict[int, str]:
         text_data = {}
         
         for i, page in enumerate(pdf.pages, start=1):
-            text = self._extract_page_text(page)
-            text_data[i] = text
+            text = page.extract_text()
+            text_data[i] = text if text else ""
             
             if text:
                 self.pages_processed += 1
@@ -127,13 +117,14 @@ class PDFTextExtractor:
         
         return text_data
     
-    def _extract_page_text(self, page) -> str:
-        text = page.extract_text()
-        return text if text else ""
+    def _print_summary(self):
+        coverage = (self.pages_processed / self.total_pages * 100)
+        print(f"\n✓ Extraction Complete:")
+        print(f"  Pages processed: {self.pages_processed}")
+        print(f"  Coverage: {coverage:.1f}%")
 
 
 class USBPDParserOrchestrator:
-    
     def __init__(self, pdf_path: str, output_dir: str):
         self.__pdf_path = pdf_path
         self.__output_dir = output_dir
@@ -167,9 +158,7 @@ class USBPDParserOrchestrator:
         return self._is_initialized
     
     def initialize(self):
-        print("\n" + "="*60)
-        print("INITIALIZING USB PD PARSER ORCHESTRATOR")
-        print("="*60)
+        self._print_init_header()
         
         ComponentRegistry.register_all()
         self._create_parsers()
@@ -177,6 +166,14 @@ class USBPDParserOrchestrator:
         self._create_validators()
         
         self._is_initialized = True
+        self._print_init_complete()
+    
+    def _print_init_header(self):
+        print("\n" + "="*60)
+        print("INITIALIZING USB PD PARSER ORCHESTRATOR")
+        print("="*60)
+    
+    def _print_init_complete(self):
         print("\n" + "="*60)
         print("✓ INITIALIZATION COMPLETE")
         print("="*60 + "\n")
@@ -190,7 +187,6 @@ class USBPDParserOrchestrator:
     
     def _create_writers(self):
         print("\n[2/3] Creating Writers...")
-        
         paths = self._get_output_paths()
         
         self.__writers["toc"] = WriterFactory.create_writer("jsonl", paths["toc"])
@@ -246,7 +242,6 @@ class USBPDParserOrchestrator:
         self._pages_processed = extractor.pages_processed
         
         self.__statistics.add_extraction_stats(self._total_pages, self._pages_processed)
-        
         self.__progress.complete_step("Text extraction complete")
     
     def _execute_toc_parsing(self):
@@ -280,7 +275,6 @@ class USBPDParserOrchestrator:
         spec_valid = self._validate_spec()
         
         self.__statistics.add_validation_stats(toc_valid, spec_valid)
-        
         print(f"✓ Validation complete")
     
     def _validate_toc(self) -> bool:
@@ -372,9 +366,9 @@ class USBPDParserOrchestrator:
     def _build_execution_summary(self) -> Dict:
         if self.__end_time is None:
             self.__end_time = datetime.now()
-    
+        
         duration = (self.__end_time - self.__start_time).total_seconds()
-    
+        
         return {
             "execution_metadata": {
                 "start_time": self.__start_time.isoformat(),
