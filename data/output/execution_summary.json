@@ -1,8 +1,8 @@
 {
   "execution_metadata": {
-    "start_time": "2025-12-11T17:03:05.724196",
-    "end_time": "2025-12-11T17:12:42.549235",
-    "duration_seconds": 576.83
+    "start_time": "2025-12-14T21:09:12.988845",
+    "end_time": "2025-12-14T21:13:27.049328",
+    "duration_seconds": 254.06
   },
   "statistics": {
     "extraction": {
@@ -34,7 +34,7 @@
     "C:\\Users\\Rithu\\Desktop\\usb_parser_project\\usb_parser_project\\data\\output\\execution_summary.json"
   ],
   "metadata": {
-    "generated_at": "2025-12-11T17:12:42.549423",
+    "generated_at": "2025-12-14T21:13:27.049958",
     "output_path": "C:\\Users\\Rithu\\Desktop\\usb_parser_project\\usb_parser_project\\data\\output\\execution_summary.json",
     "format": "JSON"
   }

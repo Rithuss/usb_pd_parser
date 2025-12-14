@@ -1,6 +1,6 @@
 {
   "document": "USB Power Delivery Specification, Revision 3.2, Version 1.1, 2024-10",
-  "validation_date": "2025-12-11T17:12:42.543328",
+  "validation_date": "2025-12-14T21:13:27.045717",
   "summary": {
     "total_toc_sections": 8057,
     "total_content_sections": 7909,
@@ -13,7 +13,7 @@
   },
   "validation_status": "PASS",
   "metadata": {
-    "generated_at": "2025-12-11T17:12:42.543543",
+    "generated_at": "2025-12-14T21:13:27.045783",
     "output_path": "C:\\Users\\Rithu\\Desktop\\usb_parser_project\\usb_parser_project\\data\\output\\validation_report.json",
     "format": "JSON"
   }
