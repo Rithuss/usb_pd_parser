@@ -1,88 +1,73 @@
 """
-Main Runner Script - REFACTORED
-Fixed: main() from 64 lines to 10 lines
-"""
-import sys
-import os
-from pathlib import Path
+Main Runner Script
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+Entry point for executing the USB PD Parser pipeline.
+"""
+
+import sys
+from pathlib import Path
 
 from orchestrator import USBPDParserOrchestrator
 
 
-def print_welcome_banner():
-    """Print welcome banner"""
-    print("\n" + "="*70)
-    print(" USB POWER DELIVERY PARSER - COMPLETE OOP IMPLEMENTATION")
-    print("="*70)
-    print("\nOOP Features Demonstrated:")
-    print("  ✓ 3 Abstract Base Classes (ABC)")
-    print("  ✓ 7 Concrete Classes with Inheritance")
-    print("  ✓ Factory Pattern (3 factories)")
-    print("  ✓ Strategy Pattern (2 strategies)")
-    print("  ✓ Composition Pattern (Orchestrator)")
-    print("  ✓ 15+ Private Attributes")
-    print("  ✓ 10+ Protected Methods")
-    print("  ✓ 12+ Special Methods")
-    print("  ✓ 5+ Property Decorators")
-    print("="*70 + "\n")
+def print_banner() -> None:
+    """Display application banner"""
+    print("\n" + "=" * 70)
+    print(" USB POWER DELIVERY PARSER")
+    print(" COMPLETE OOP IMPLEMENTATION")
+    print("=" * 70 + "\n")
 
 
-def get_project_paths():
-    """Get PDF and output directory paths"""
-    project_root = Path(__file__).parent.parent.parent
-    pdf_path = project_root / "data" / "input" / "USB_PD_R3_2 V1.1 2024-10.pdf"
+def get_paths() -> tuple[Path, Path]:
+    """Resolve project paths"""
+    project_root = Path(__file__).resolve().parents[2]
+    pdf_path = (
+        project_root
+        / "data"
+        / "input"
+        / "USB_PD_R3_2 V1.1 2024-10.pdf"
+    )
     output_dir = project_root / "data" / "output"
     return pdf_path, output_dir
 
 
-def validate_pdf_exists(pdf_path: Path) -> bool:
-    """Check if PDF file exists"""
+def pdf_exists(pdf_path: Path) -> bool:
+    """Validate PDF availability"""
     if not pdf_path.exists():
-        print(f"❌ ERROR: PDF file not found!")
-        print(f"Expected location: {pdf_path}")
-        print("\nPlease ensure the PDF is in the correct location.")
+        print("❌ PDF file not found")
+        print(f"Expected path: {pdf_path}")
         return False
     return True
 
 
-def run_orchestrator(pdf_path: str, output_dir: str):
-    """Execute the parser orchestrator"""
-    orchestrator = USBPDParserOrchestrator(str(pdf_path), str(output_dir))
+def run(pdf_path: Path, output_dir: Path) -> None:
+    """Run parser orchestrator"""
+    orchestrator = USBPDParserOrchestrator(
+        str(pdf_path),
+        str(output_dir),
+    )
     orchestrator.execute()
 
 
-def print_success_message(output_dir):
-    """Print success message"""
-    print("\n🎉 SUCCESS! All files generated successfully!")
-    print(f"\nCheck output files in: {output_dir}")
-    print("  📄 usb_pd_toc.jsonl")
-    print("  📄 usb_pd_spec.jsonl")
-    print("  📄 validation_report.json")
-    print("  📄 execution_summary.json")
+def main() -> int:
+    """Application entry point"""
+    print_banner()
 
+    pdf_path, output_dir = get_paths()
 
-def main():
-    """Main entry point"""
-    print_welcome_banner()
-    
-    pdf_path, output_dir = get_project_paths()
-    
-    if not validate_pdf_exists(pdf_path):
+    if not pdf_exists(pdf_path):
         return 1
-    
+
     try:
-        run_orchestrator(pdf_path, output_dir)
-        print_success_message(output_dir)
+        run(pdf_path, output_dir)
+        print("\n🎉 SUCCESS! Files generated successfully")
         return 0
-    except Exception as e:
-        print(f"\n❌ ERROR: {str(e)}")
-        import traceback
-        traceback.print_exc()
+    except Exception as exc:  # pylint: disable=broad-except
+        print("\n❌ Execution failed")
+        print(str(exc))
         return 1
 
 
 if __name__ == "__main__":
-    exit_code = main()
-    sys.exit(exit_code)
+    sys.exit(main())
+
