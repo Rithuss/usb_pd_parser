@@ -4,13 +4,14 @@ Parses TOC sections from USB PD specification.
 """
 
 from typing import Dict, List, Optional
-from core.base_classes import BaseParser
+from src.core.base_classes import BaseParser
+
 
 
 class USBPDTOCParser(BaseParser):
     """
-    Parser for extracting Table of Contents entries.
-    Demonstrates clean parsing logic with low complexity.
+    Concrete parser for extracting TOC entries.
+    Demonstrates inheritance, encapsulation, and polymorphism.
     """
 
     _MIN_DEPTH = 1
@@ -19,21 +20,31 @@ class USBPDTOCParser(BaseParser):
     def __init__(self, doc_title: str):
         super().__init__(doc_title)
 
+        # Private state (encapsulation)
         self.__entries: List[Dict] = []
-        self.__max_depth: int = 0
+        self.__max_depth = 0
 
-    # --------------------
-    # Public API
-    # --------------------
+    # ---------- Properties ----------
+
+    @property
+    def toc_entries(self) -> List[Dict]:
+        return self.__entries.copy()
+
+    @property
+    def max_depth(self) -> int:
+        return self.__max_depth
+
+    # ---------- Public API ----------
+
     def parse(self, text_data: Dict[int, str]) -> List[Dict]:
         """
         Parse TOC entries from extracted PDF text.
         """
         entries: List[Dict] = []
 
-        for page_num, content in text_data.items():
+        for page, content in text_data.items():
             if content:
-                self._parse_page(content, page_num, entries)
+                self._parse_page(page, content, entries)
 
         self.__entries = entries
         self._mark_as_parsed(entries)
@@ -48,20 +59,19 @@ class USBPDTOCParser(BaseParser):
 
         return self._MIN_DEPTH <= self.__max_depth <= self._MAX_DEPTH
 
-    # --------------------
-    # Internal helpers
-    # --------------------
+    # ---------- Protected Helpers ----------
+
     def _parse_page(
         self,
-        content: str,
         page_num: int,
+        content: str,
         entries: List[Dict],
     ) -> None:
         for line in content.splitlines():
             entry = self._parse_line(line, page_num)
             if entry:
                 entries.append(entry)
-                self._update_depth(entry["level"])
+                self._update_depth(entry)
 
     def _parse_line(
         self,
@@ -97,16 +107,20 @@ class USBPDTOCParser(BaseParser):
             return None
         return ".".join(section_id.split(".")[:-1])
 
-    def _update_depth(self, level: int) -> None:
-        self.__max_depth = max(self.__max_depth, level)
+    def _update_depth(self, entry: Dict) -> None:
+        self.__max_depth = max(self.__max_depth, entry["level"])
 
-    # --------------------
-    # Properties
-    # --------------------
-    @property
-    def max_depth(self) -> int:
-        return self.__max_depth
+    # ---------- Special Methods (Polymorphism) ----------
 
-    @property
-    def toc_entries(self) -> List[Dict]:
-        return self.__entries.copy()
+    def __len__(self) -> int:
+        return len(self.__entries)
+
+    def __iter__(self):
+        return iter(self.__entries)
+
+    def __str__(self) -> str:
+        return (
+            f"USBPDTOCParser("
+            f"sections={len(self)}, "
+            f"max_depth={self.__max_depth})"
+        )

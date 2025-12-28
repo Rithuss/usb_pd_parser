@@ -7,190 +7,154 @@ OOP Concepts:
 - POLYMORPHISM: Different write() implementation
 - ENCAPSULATION: Private formatting logic
 """
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import json
 from typing import Dict, Any
 from pathlib import Path
 from datetime import datetime
-from core.base_classes import BaseOutputWriter
+
+from src.core.base_classes import BaseOutputWriter
 
 
 class ValidationReportWriter(BaseOutputWriter):
     """
     Validation report writer (JSON format).
-    
+
     OOP Principles:
     - INHERITANCE: Extends BaseOutputWriter
     - POLYMORPHISM: Custom write() for reports
     - ENCAPSULATION: Private report formatting
     """
-    
+
     def __init__(self, output_path: str):
         """
         Initialize validation report writer.
-        
+
         Args:
             output_path: Path to output file
         """
-        # INHERITANCE: Call parent
         super().__init__(output_path)
-        
-        # ENCAPSULATION: Private attributes
-        self.__report_data = {}
+
+        # PRIVATE ATTRIBUTES (Encapsulation)
+        self.__report_data: Dict[str, Any] = {}
         self.__generation_time = None
         self.__report_size = 0
-        
-        # ENCAPSULATION: Protected attributes
+
+        # PROTECTED CONFIGURATION
         self._format_name = "JSON"
-        self._indent = 2  # Pretty-print JSON
-    
-    # PROPERTY: Access to private data
+        self._indent = 2
+        self._encoding = "utf-8"
+        self._ensure_ascii = False
+
+    # -------------------- PROPERTIES --------------------
+
     @property
-    def report_data(self) -> Dict:
-        """Get report data (read-only)"""
+    def report_data(self) -> Dict[str, Any]:
+        """Return written report data (read-only)."""
         return self.__report_data.copy()
-    
+
     @property
-    def generation_time(self) -> str:
-        """Get report generation time"""
+    def generation_time(self) -> str | None:
+        """Return report generation time."""
         return (
             self.__generation_time.isoformat()
-            if self.__generation_time else None
+            if self.__generation_time
+            else None
         )
-    
+
     @property
     def report_size(self) -> int:
-        """Get report size in bytes"""
+        """Return report size in bytes."""
         return self.__report_size
-    
-    # POLYMORPHISM: Override write method
+
+    # -------------------- POLYMORPHISM --------------------
+
     def write(self, data: Dict[str, Any]) -> bool:
         """
-        Write validation report.
-        
-        POLYMORPHISM: Report-specific write logic.
-        
+        Write validation report to JSON file.
+
         Args:
-            data: Report data dictionary
-            
+            data: Validation report dictionary
+
         Returns:
-            True if successful
+            True if successful, False otherwise
         """
         try:
-            # Enhance report with metadata
             enhanced_report = self.__enhance_report(data)
-            
-            # Ensure directory exists
             self.__ensure_directory()
-            
-            # Write JSON report
+
+            json_str = json.dumps(
+                enhanced_report,
+                indent=self._indent,
+                ensure_ascii=self._ensure_ascii,
+            )
+
             with open(
                 self.output_path,
-                'w',
-                encoding=self._encoding
-            ) as f:
-                json_str = json.dumps(
-                    enhanced_report,
-                    indent=self._indent,
-                    ensure_ascii=self._ensure_ascii
-                )
-                f.write(json_str)
-                
-                self.__report_size = len(
-                    json_str.encode('utf-8')
-                )
-            
-            # Store data
+                "w",
+                encoding=self._encoding,
+            ) as file:
+                file.write(json_str)
+
+            self.__report_size = len(
+                json_str.encode(self._encoding)
+            )
             self.__report_data = enhanced_report
             self.__generation_time = datetime.now()
-            
-            # Mark as written
-            self._mark_as_written(1)
-            
+
+            self._lines_written += 1
             return True
-            
-        except Exception as e:
-            print(f"Error writing report: {e}")
+
+        except Exception as exc:
+            print(f"Error writing report: {exc}")
             return False
-    
-    # ENCAPSULATION: Private enhancer
-    def __enhance_report(self, data: Dict) -> Dict:
-        """
-        Enhance report with metadata.
-        
-        Args:
-            data: Base report data
-            
-        Returns:
-            Enhanced report
-        """
+
+    # -------------------- PRIVATE HELPERS --------------------
+
+    def __enhance_report(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Enhance report with metadata."""
         enhanced = data.copy()
-        
-        # Add metadata if not present
-        if "metadata" not in enhanced:
-            enhanced["metadata"] = {}
-        
-        enhanced["metadata"]["generated_at"] = (
-            datetime.now().isoformat()
-        )
-        enhanced["metadata"]["output_path"] = self.output_path
-        enhanced["metadata"]["format"] = self._format_name
-        
+
+        metadata = enhanced.setdefault("metadata", {})
+        metadata["generated_at"] = datetime.now().isoformat()
+        metadata["output_path"] = self.output_path
+        metadata["format"] = self._format_name
+
         return enhanced
-    
-    # ENCAPSULATION: Private helper
-    def __ensure_directory(self):
-        """Ensure output directory exists"""
-        output_dir = Path(self.output_path).parent
-        output_dir.mkdir(parents=True, exist_ok=True)
-    
-    # PROTECTED METHOD: Get statistics
-    def _get_report_stats(self) -> Dict:
-        """
-        Get report writing statistics.
-        
-        Returns:
-            Statistics dictionary
-        """
+
+    def __ensure_directory(self) -> None:
+        """Ensure output directory exists."""
+        Path(self.output_path).parent.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+    # -------------------- PROTECTED HELPERS --------------------
+
+    def _get_report_stats(self) -> Dict[str, Any]:
+        """Return report writing statistics."""
         base_stats = self._get_write_stats()
         report_stats = {
             "format": self._format_name,
             "report_size": self.__report_size,
-            "generation_time": self.generation_time
+            "generation_time": self.generation_time,
         }
-        
         return {**base_stats, **report_stats}
-    
-    # PUBLIC METHOD: Validate report structure
-    def validate_report(self, data: Dict) -> bool:
-        """
-        Validate report structure before writing.
-        
-        Args:
-            data: Report data to validate
-            
-        Returns:
-            True if valid
-        """
-        required_keys = ["document", "summary", "validation_status"]
-        
-        return all(key in data for key in required_keys)
-    
-    # SPECIAL METHOD: Context manager
-    def __enter__(self):
-        """Context manager entry"""
-        return self
-    
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Context manager exit"""
-        pass
-    
-    # SPECIAL METHOD: String representation
+
+    # -------------------- PUBLIC VALIDATION --------------------
+
+    def validate_report(self, data: Dict[str, Any]) -> bool:
+        """Validate report structure before writing."""
+        required_keys = {
+            "document",
+            "summary",
+            "validation_status",
+        }
+        return required_keys.issubset(data)
+
+    # -------------------- SPECIAL METHODS --------------------
+
     def __str__(self) -> str:
-        """String representation"""
         return (
             f"ValidationReportWriter("
             f"path='{self.output_path}', "
@@ -198,10 +162,11 @@ class ValidationReportWriter(BaseOutputWriter):
         )
 
 
-# Register with factory
+# Factory registration
 if __name__ != "__main__":
-    from core.factories import WriterFactory
+    from src.core.factories import WriterFactory
+
     WriterFactory.register_writer(
         "validation",
-        ValidationReportWriter
+        ValidationReportWriter,
     )

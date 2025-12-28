@@ -1,180 +1,112 @@
 """
 Interfaces Module
-Defines contracts and protocols for components.
-
-OOP Concepts:
-- Interface pattern (pure abstract classes)
-- Protocol pattern for duck typing
-- Type hints for type safety
+Defines abstract interfaces and protocols for components.
 """
-from abc import ABC, abstractmethod
-from typing import Dict, List, Any, Protocol
-from pathlib import Path
 
+from abc import ABC, abstractmethod
+from typing import Any, Dict, List, Protocol
+
+
+# -------------------------
+# ABSTRACT INTERFACES
+# -------------------------
 
 class IDataExtractor(ABC):
-    """
-    Interface for data extraction components.
-    
-    OOP: Pure interface pattern - all methods are abstract
-    """
-    
+    """Interface for data extraction components."""
+
     @abstractmethod
     def extract(self, source: Any) -> List[Dict]:
-        """
-        Extract data from source.
-        
-        Args:
-            source: Data source
-            
-        Returns:
-            List of extracted data dictionaries
-        """
-        pass
-    
+        """Extract structured data from source."""
+        raise NotImplementedError
+
     @abstractmethod
     def get_extraction_stats(self) -> Dict[str, Any]:
-        """
-        Get extraction statistics.
-        
-        Returns:
-            Dictionary with stats
-        """
-        pass
+        """Return extraction statistics."""
+        raise NotImplementedError
 
 
 class IOutputFormatter(ABC):
-    """
-    Interface for output formatting.
-    
-    OOP: Defines contract for formatters
-    """
-    
+    """Interface for output formatting components."""
+
     @abstractmethod
     def format(self, data: Any) -> str:
-        """
-        Format data for output.
-        
-        Args:
-            data: Data to format
-            
-        Returns:
-            Formatted string
-        """
-        pass
-    
+        """Format data into output string."""
+        raise NotImplementedError
+
     @abstractmethod
     def get_format_name(self) -> str:
-        """
-        Get formatter name.
-        
-        Returns:
-            Name of format
-        """
-        pass
+        """Return formatter name."""
+        raise NotImplementedError
 
 
 class IValidationStrategy(ABC):
-    """
-    Interface for validation strategies (Strategy Pattern).
-    
-    OOP: Strategy pattern interface
-    """
-    
+    """Interface for validation strategies."""
+
     @abstractmethod
     def validate(self, data: Any) -> bool:
-        """
-        Validate data using this strategy.
-        
-        Args:
-            data: Data to validate
-            
-        Returns:
-            True if valid
-        """
-        pass
-    
+        """Validate input data."""
+        raise NotImplementedError
+
     @abstractmethod
     def get_validation_report(self) -> Dict[str, Any]:
-        """
-        Get validation report.
-        
-        Returns:
-            Validation report dictionary
-        """
-        pass
+        """Return validation report."""
+        raise NotImplementedError
 
+
+# -------------------------
+# PROTOCOLS (DUCK TYPING)
+# -------------------------
 
 class Parseable(Protocol):
-    """
-    Protocol for parseable objects (Duck Typing).
-    
-    OOP: Protocol pattern - any object with these methods
-    can be used as parseable.
-    """
-    
+    """Protocol for parseable objects."""
+
     def parse(self, text_data: Dict[int, str]) -> List[Dict]:
-        """Parse method signature"""
         ...
-    
-    def validate(self) -> bool:
-        """Validate method signature"""
-        ...
-    
+
     @property
     def total_items(self) -> int:
-        """Total items property"""
         ...
 
 
 class Writeable(Protocol):
-    """
-    Protocol for writeable objects.
-    
-    OOP: Any object implementing these can be written
-    """
-    
+    """Protocol for writeable objects."""
+
     def write(self, data: Any) -> bool:
-        """Write method signature"""
         ...
-    
+
     @property
     def output_path(self) -> str:
-        """Output path property"""
         ...
 
 
 class Validatable(Protocol):
-    """
-    Protocol for validatable objects.
-    
-    OOP: Duck typing for validation
-    """
-    
+    """Protocol for validatable objects."""
+
     def validate(self, data: Any) -> bool:
-        """Validate method signature"""
         ...
-    
+
     @property
     def is_valid(self) -> bool:
-        """Validation status property"""
         ...
 
 
-# Type aliases for better code documentation
-ParserType = IDataExtractor
-WriterType = IOutputFormatter
-ValidatorType = IValidationStrategy
+# -------------------------
+# TYPE ALIASES (PEP8)
+# -------------------------
 
-# Module exports
+parser_type = IDataExtractor
+writer_type = IOutputFormatter
+validator_type = IValidationStrategy
+
+
 __all__ = [
-    'IDataExtractor',
-    'IOutputFormatter',
-    'IValidationStrategy',
-    'Parseable',
-    'Writeable',
-    'Validatable',
-    'ParserType',
-    'WriterType',
-    'ValidatorType'
+    "IDataExtractor",
+    "IOutputFormatter",
+    "IValidationStrategy",
+    "Parseable",
+    "Writeable",
+    "Validatable",
+    "parser_type",
+    "writer_type",
+    "validator_type",
 ]

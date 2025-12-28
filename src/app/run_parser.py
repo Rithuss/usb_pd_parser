@@ -7,7 +7,7 @@ Entry point for executing the USB PD Parser pipeline.
 import sys
 from pathlib import Path
 
-from orchestrator import USBPDParserOrchestrator
+from .orchestrator import USBPDParserOrchestrator
 
 
 def print_banner() -> None:

@@ -1,6 +1,6 @@
 """
 TOC Validation Strategy
-Validates Table of Contents data.
+Validates Table of Contents structure and content.
 """
 
 from typing import List, Dict
@@ -9,7 +9,7 @@ from core.base_classes import BaseValidator
 
 class TOCValidationStrategy(BaseValidator):
     """
-    Strategy for validating TOC structure and content.
+    Strategy Pattern implementation for TOC validation.
     """
 
     _MIN_SECTIONS = 1000
@@ -18,30 +18,29 @@ class TOCValidationStrategy(BaseValidator):
     def __init__(self):
         super().__init__("TOC Validator")
 
-    # --------------------
-    # Public API
-    # --------------------
+    # ---------- Public API ----------
+
     def validate(self, data: List[Dict]) -> bool:
         """
-        Validate TOC data using simple, independent rules.
+        Validate TOC using independent validation rules.
         """
         self._reset()
 
-        if not self._check_section_count(data):
-            return False
+        rules = [
+            self._check_section_count,
+            self._check_hierarchy,
+            self._check_required_fields,
+        ]
 
-        if not self._check_hierarchy(data):
-            return False
-
-        if not self._check_required_fields(data):
-            return False
+        for rule in rules:
+            if not rule(data):
+                return False
 
         self._mark_valid()
         return True
 
-    # --------------------
-    # Validation Rules
-    # --------------------
+    # ---------- Validation Rules ----------
+
     def _check_section_count(self, data: List[Dict]) -> bool:
         if len(data) < self._MIN_SECTIONS:
             self._add_error(
@@ -69,7 +68,7 @@ class TOCValidationStrategy(BaseValidator):
 
         if missing_parents > len(data) * 0.1:
             self._add_error(
-                "Too many sections missing parent references"
+                "Too many TOC entries missing parent references"
             )
             return False
 
@@ -84,12 +83,8 @@ class TOCValidationStrategy(BaseValidator):
             "full_path",
         }
 
-        self.__checked_entries = 0
-
         for entry in data:
-            self.__checked_entries += 1
-
-            if not required_fields.issubset(entry.keys()):
+            if not required_fields.issubset(entry):
                 self._add_error(
                     "One or more TOC entries missing required fields"
                 )
@@ -97,10 +92,8 @@ class TOCValidationStrategy(BaseValidator):
 
         return True
 
+    # ---------- Special Method ----------
 
-    # --------------------
-    # Helpers
-    # --------------------
     def __str__(self) -> str:
         status = "Valid" if self.is_valid else "Invalid"
         return f"TOCValidationStrategy({status})"
