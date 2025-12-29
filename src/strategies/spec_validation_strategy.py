@@ -12,7 +12,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from typing import List, Dict, Any
-from core.base_classes import BaseValidator
+from src.core.base_classes import BaseValidator
 
 
 class SpecValidationStrategy(BaseValidator):
@@ -255,10 +255,3 @@ class SpecValidationStrategy(BaseValidator):
         )
 
 
-# Register with factory
-if __name__ != "__main__":
-    from core.factories import ValidatorFactory
-    ValidatorFactory.register_validator(
-        "spec",
-        SpecValidationStrategy
-    )

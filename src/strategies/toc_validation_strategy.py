@@ -4,7 +4,7 @@ Validates Table of Contents structure and content.
 """
 
 from typing import List, Dict
-from core.base_classes import BaseValidator
+from src.core.base_classes import BaseValidator
 
 
 class TOCValidationStrategy(BaseValidator):
@@ -97,3 +97,4 @@ class TOCValidationStrategy(BaseValidator):
     def __str__(self) -> str:
         status = "Valid" if self.is_valid else "Invalid"
         return f"TOCValidationStrategy({status})"
+

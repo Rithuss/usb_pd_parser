@@ -157,3 +157,4 @@ class USBPDSpecParser(BaseParser):
             f"sections={len(self)}, "
             f"with_content={self.__sections_with_content})"
         )
+

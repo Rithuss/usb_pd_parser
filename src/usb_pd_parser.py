@@ -86,43 +86,6 @@ class ProgressPrinter:
         print(f"✓ {msg}")
 
 
-# ============================================================================
-# PDF PARSER
-# ============================================================================
-
-class PDFParser:
-    """Extracts raw text from PDF"""
-
-    def __init__(self, pdf_path: str):
-        self._pdf_path = pdf_path
-        self._tracker = PageTracker()
-        self._printer = ProgressPrinter()
-
-    def extract_text(self) -> Dict[int, str]:
-        self._printer.print_header("PDF EXTRACTION STARTED")
-
-        text_data: Dict[int, str] = {}
-
-        with pdfplumber.open(self._pdf_path) as pdf:
-            self._tracker.total_pages = len(pdf.pages)
-
-            for i, page in enumerate(pdf.pages, start=1):
-                text = page.extract_text() or ""
-                text_data[i] = text
-
-                if text.strip():
-                    self._tracker.increment_with_content()
-                else:
-                    self._tracker.increment_without_content()
-
-        stats = self._tracker.get_stats()
-        print(f"Pages covered: {stats['coverage_percentage']}%")
-
-        return text_data
-
-    def get_page_coverage_stats(self) -> Dict:
-        return self._tracker.get_stats()
-
 
 # ============================================================================
 # TOC PARSER
@@ -256,66 +219,5 @@ class ValidationReportGenerator:
         }
 
 
-# ============================================================================
-# MAIN APPLICATION
-# ============================================================================
 
-class USBPDParserApp:
-    """Application orchestrator"""
-
-    def __init__(self, pdf_path: str, output_dir: str):
-        self._pdf_path = pdf_path
-        self._output_dir = output_dir
-        self._printer = ProgressPrinter()
-
-    def run(self):
-        self._printer.print_header("USB PD PARSER")
-
-        parser = PDFParser(self._pdf_path)
-        text_data = parser.extract_text()
-
-        toc_parser = USBPDTOCParser(text_data, "USB PD Spec")
-        toc = toc_parser.parse()
-
-        spec_parser = USBPDSpecParser(text_data, "USB PD Spec")
-        content = spec_parser.parse()
-
-        report = ValidationReportGenerator(
-            toc, content, parser.get_page_coverage_stats(), "USB PD Spec"
-        ).generate_report()
-
-        self._save_jsonl(toc, "usb_pd_toc.jsonl")
-        self._save_jsonl(content, "usb_pd_spec.jsonl")
-        self._save_json(report, "validation_report.json")
-
-        self._printer.print_success("All files generated successfully")
-
-    def _save_jsonl(self, data: List[Dict], name: str):
-        os.makedirs(self._output_dir, exist_ok=True)
-        path = os.path.join(self._output_dir, name)
-        with open(path, "w", encoding="utf-8") as f:
-            for item in data:
-                f.write(json.dumps(item, ensure_ascii=False) + "\n")
-
-    def _save_json(self, data: Dict, name: str):
-        os.makedirs(self._output_dir, exist_ok=True)
-        path = os.path.join(self._output_dir, name)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-
-
-# ============================================================================
-# ENTRY POINT
-# ============================================================================
-
-if __name__ == "__main__":
-    project_root = os.path.dirname(
-        os.path.dirname(os.path.abspath(__file__))
-    )
-
-    pdf_path = os.path.join(
-        project_root, "data", "input", "USB_PD_R3_2 V1.1 2024-10.pdf"
-    )
-    output_dir = os.path.join(project_root, "data", "output")
-
-    USBPDParserApp(pdf_path, output_dir).run()
+    

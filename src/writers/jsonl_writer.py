@@ -14,7 +14,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import json
 from typing import List, Dict, Any
 from pathlib import Path
-from core.base_classes import BaseOutputWriter
+from src.core.base_classes import BaseOutputWriter
 
 
 class JSONLWriter(BaseOutputWriter):
@@ -194,8 +194,5 @@ class JSONLWriter(BaseOutputWriter):
             f"lines={self.__lines_written})"
         )
 
-
-# Register with factory
-if __name__ != "__main__":
-    from core.factories import WriterFactory
-    WriterFactory.register_writer("jsonl", JSONLWriter)
+    
+ 

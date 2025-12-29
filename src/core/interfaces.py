@@ -4,7 +4,8 @@ Defines abstract interfaces and protocols for components.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Protocol
+from typing import Any, Dict, List, Protocol, runtime_checkable
+
 
 
 # -------------------------
@@ -57,6 +58,7 @@ class IValidationStrategy(ABC):
 # PROTOCOLS (DUCK TYPING)
 # -------------------------
 
+@runtime_checkable
 class Parseable(Protocol):
     """Protocol for parseable objects."""
 
@@ -67,7 +69,7 @@ class Parseable(Protocol):
     def total_items(self) -> int:
         ...
 
-
+@runtime_checkable
 class Writeable(Protocol):
     """Protocol for writeable objects."""
 
@@ -78,7 +80,7 @@ class Writeable(Protocol):
     def output_path(self) -> str:
         ...
 
-
+@runtime_checkable
 class Validatable(Protocol):
     """Protocol for validatable objects."""
 
