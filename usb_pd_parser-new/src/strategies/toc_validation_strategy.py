@@ -1,11 +1,8 @@
-"""
-TOC Validation Strategy
-Validates Table of Contents data.
+"""Table of Contents validation strategy.
 
-OOP Concepts:
-- STRATEGY PATTERN: Interchangeable validation algorithm
-- INHERITANCE: Inherits from BaseValidator
-- POLYMORPHISM: Custom validate() implementation
+Implements checks for TOC entries such as minimum section count,
+hierarchy depth, duplicate section ids and presence of required
+fields. Intended to be used through the `BaseValidator` interface.
 """
 import sys
 import os
@@ -15,26 +12,34 @@ from typing import List, Dict, Any
 from core.base_classes import BaseValidator
 
 
-class TOCValidationStrategy(BaseValidator):
-    """
-    Validation strategy for TOC data.
+class TOCValidationState:
+    """Encapsulates the state during TOC validation operations."""
     
-    OOP Principles:
-    - STRATEGY PATTERN: Interchangeable validation
-    - INHERITANCE: Extends BaseValidator
-    - POLYMORPHISM: Custom validate() logic
+    def __init__(self, data: List[Dict]):
+        self.data = data
+        self.total_sections = len(data)
+        self.validated_sections = []
+        self.hierarchy_issues = []
+        self.max_level = 0
+
+
+class TOCValidationStrategy(BaseValidator):
+    """Validate TOC entry lists.
+
+    The validator accepts a list of TOC dictionaries and applies a
+    set of rules: minimum count, hierarchy checks, id uniqueness and
+    required field presence. Results and details are exposed via
+    ``_get_validation_details()``.
     """
     
     def __init__(self):
-        """Initialize TOC validator"""
+        """Initialize thresholds and internal tracking lists."""
         # INHERITANCE: Call parent
         super().__init__("TOC Validator")
         
         # ENCAPSULATION: Private attributes
         self.__min_sections = 1000
         self.__max_hierarchy_depth = 10
-        self.__validated_sections = []
-        self.__hierarchy_issues = []
         
         # ENCAPSULATION: Protected
         self._validation_rules = {
@@ -45,65 +50,51 @@ class TOCValidationStrategy(BaseValidator):
     # PROPERTY: Read-only access
     @property
     def min_sections(self) -> int:
-        """Minimum expected sections"""
+        """Return the configured minimum number of TOC sections."""
         return self.__min_sections
     
     @property
     def validated_sections(self) -> List[str]:
-        """Get validated section IDs"""
-        return self.__validated_sections.copy()
+        """Return a copy of section ids that passed basic checks."""
+        return getattr(self, '_validation_state', TOCValidationState([])).validated_sections.copy()
     
     # POLYMORPHISM: Override validate method
     def validate(self, data: List[Dict]) -> bool:
-        """
-        Validate TOC data.
-        
-        POLYMORPHISM: TOC-specific validation logic.
-        
-        Args:
-            data: List of TOC entries
-            
-        Returns:
-            True if valid
+        """Validate a list of TOC entry dictionaries.
+
+        Returns True if all checks pass; otherwise records errors and
+        returns False.
         """
         # Reset previous validation
         self._reset()
         
-        # Rule 1: Check minimum sections
-        if not self.__validate_section_count(data):
-            return False
+        # Create validation state
+        self._validation_state = TOCValidationState(data)
         
-        # Rule 2: Validate hierarchy structure
-        if not self.__validate_hierarchy(data):
-            return False
+        # Apply all validation rules
+        validation_rules = [
+            self._validate_section_count,
+            self._validate_hierarchy,
+            self._validate_section_ids,
+            self._validate_required_fields
+        ]
         
-        # Rule 3: Validate section IDs
-        if not self.__validate_section_ids(data):
-            return False
-        
-        # Rule 4: Validate required fields
-        if not self.__validate_required_fields(data):
-            return False
+        all_passed = True
+        for rule in validation_rules:
+            if not rule():
+                all_passed = False
         
         # Mark as valid if all checks pass
-        if self.error_count == 0:
+        if all_passed and self.error_count == 0:
             self._mark_valid()
             return True
         
         return False
     
     # ENCAPSULATION: Private validation rules
-    def __validate_section_count(self, data: List[Dict]) -> bool:
-        """
-        Validate minimum section count.
-        
-        Args:
-            data: TOC entries
-            
-        Returns:
-            True if valid count
-        """
-        count = len(data)
+    def _validate_section_count(self) -> bool:
+        """Ensure the total number of TOC entries meets the minimum."""
+        count = self._validation_state.total_sections
         
         if count < self.__min_sections:
             self._add_error(
@@ -115,69 +106,71 @@ class TOCValidationStrategy(BaseValidator):
         return True
     
     # ENCAPSULATION: Private validation
-    def __validate_hierarchy(self, data: List[Dict]) -> bool:
-        """
-        Validate hierarchy structure.
+    def _validate_hierarchy(self) -> bool:
+        """Check hierarchy depth and basic parent-child consistency."""
+        self._analyze_hierarchy()
         
-        Args:
-            data: TOC entries
-            
-        Returns:
-            True if hierarchy is valid
-        """
-        max_level = 0
+        if not self._validate_hierarchy_depth():
+            return False
         
-        for entry in data:
+        if not self._validate_hierarchy_consistency():
+            return False
+        
+        return True
+    
+    def _analyze_hierarchy(self):
+        """Analyze hierarchy structure and collect issues."""
+        for entry in self._validation_state.data:
             level = entry.get("level", 0)
-            max_level = max(max_level, level)
+            self._validation_state.max_level = max(self._validation_state.max_level, level)
             
             # Check parent-child relationship
             if level > 1:
                 parent_id = entry.get("parent_id")
                 if not parent_id:
-                    self.__hierarchy_issues.append(
-                        entry.get("section_id", "unknown")
-                    )
-        
-        if max_level > self.__max_hierarchy_depth:
+                    self._add_hierarchy_issue(entry)
+    
+    def _add_hierarchy_issue(self, entry: Dict):
+        """Add a hierarchy issue to the tracking list."""
+        self._validation_state.hierarchy_issues.append(
+            entry.get("section_id", "unknown")
+        )
+    
+    def _validate_hierarchy_depth(self) -> bool:
+        """Validate that hierarchy depth doesn't exceed maximum."""
+        if self._validation_state.max_level > self.__max_hierarchy_depth:
             self._add_error(
-                f"Hierarchy too deep: {max_level} levels "
+                f"Hierarchy too deep: {self._validation_state.max_level} levels "
                 f"(max: {self.__max_hierarchy_depth})"
             )
             return False
-        
-        if len(self.__hierarchy_issues) > len(data) * 0.1:
+        return True
+    
+    def _validate_hierarchy_consistency(self) -> bool:
+        """Validate that hierarchy issues are within acceptable limits."""
+        issue_threshold = self._validation_state.total_sections * 0.1
+        if len(self._validation_state.hierarchy_issues) > issue_threshold:
             self._add_error(
                 f"Too many hierarchy issues: "
-                f"{len(self.__hierarchy_issues)}"
+                f"{len(self._validation_state.hierarchy_issues)}"
             )
             return False
-        
         return True
     
     # ENCAPSULATION: Private validation
-    def __validate_section_ids(self, data: List[Dict]) -> bool:
-        """
-        Validate section ID format.
-        
-        Args:
-            data: TOC entries
-            
-        Returns:
-            True if section IDs are valid
-        """
+    def _validate_section_ids(self) -> bool:
+        """Verify section id uniqueness and collect validated ids."""
         seen_ids = set()
         duplicates = []
         
-        for entry in data:
+        for entry in self._validation_state.data:
             section_id = entry.get("section_id", "")
             
-            # Check for duplicates
             if section_id in seen_ids:
                 duplicates.append(section_id)
             else:
                 seen_ids.add(section_id)
-                self.__validated_sections.append(section_id)
+                self._validation_state.validated_sections.append(section_id)
         
         if duplicates:
             self._add_error(
@@ -188,16 +181,8 @@ class TOCValidationStrategy(BaseValidator):
         return True
     
     # ENCAPSULATION: Private validation
-    def __validate_required_fields(self, data: List[Dict]) -> bool:
-        """
-        Validate required fields in entries.
-        
-        Args:
-            data: TOC entries
-            
-        Returns:
-            True if all required fields present
-        """
+    def _validate_required_fields(self) -> bool:
+        """Ensure each entry contains required keys (id, title, page, level, full_path)."""
         required_fields = [
             "section_id",
             "title",
@@ -206,12 +191,7 @@ class TOCValidationStrategy(BaseValidator):
             "full_path"
         ]
         
-        missing_fields_count = 0
-        
-        for entry in data:
-            for field in required_fields:
-                if field not in entry:
-                    missing_fields_count += 1
+        missing_fields_count = self._count_missing_fields(required_fields)
         
         if missing_fields_count > 0:
             self._add_error(
@@ -222,27 +202,36 @@ class TOCValidationStrategy(BaseValidator):
         
         return True
     
+    def _count_missing_fields(self, required_fields: List[str]) -> int:
+        """Count total missing required fields across all entries."""
+        missing_count = 0
+        
+        for entry in self._validation_state.data:
+            missing_count += self._count_missing_fields_in_entry(entry, required_fields)
+        
+        return missing_count
+    
+    def _count_missing_fields_in_entry(self, entry: Dict, required_fields: List[str]) -> int:
+        """Count missing required fields in a single entry."""
+        return sum(1 for field in required_fields if field not in entry)
+    
     # PROTECTED METHOD: Get validation details
     def _get_validation_details(self) -> Dict:
-        """
-        Get detailed validation results.
-        
-        Returns:
-            Validation details dictionary
-        """
+        """Return a dict summarizing validation status, counts and rules."""
+        state = getattr(self, '_validation_state', TOCValidationState([]))
         return {
             "validator_name": self.validator_name,
             "is_valid": self.is_valid,
             "error_count": self.error_count,
             "errors": self.validation_errors,
-            "validated_sections": len(self.__validated_sections),
-            "hierarchy_issues": len(self.__hierarchy_issues),
+            "validated_sections": len(state.validated_sections),
+            "hierarchy_issues": len(state.hierarchy_issues),
             "validation_rules": self._validation_rules
         }
     
     # SPECIAL METHOD: String representation
     def __str__(self) -> str:
-        """String representation"""
+        """Return a short string indicating validation status and error count."""
         status = "Valid" if self.is_valid else "Invalid"
         return (
             f"TOCValidationStrategy({status}, "

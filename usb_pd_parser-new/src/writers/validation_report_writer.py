@@ -1,11 +1,8 @@
-"""
-Validation Report Writer
-Writes validation reports in JSON format.
+"""Validation report writer.
 
-OOP Concepts:
-- INHERITANCE: Inherits from BaseOutputWriter
-- POLYMORPHISM: Different write() implementation
-- ENCAPSULATION: Private formatting logic
+Writes validation reports as JSON files and augments the report
+with simple metadata (generation time, output path and format).
+Exposes write statistics and a small validation helper.
 """
 import sys
 import os
@@ -19,22 +16,14 @@ from core.base_classes import BaseOutputWriter
 
 
 class ValidationReportWriter(BaseOutputWriter):
-    """
-    Validation report writer (JSON format).
-    
-    OOP Principles:
-    - INHERITANCE: Extends BaseOutputWriter
-    - POLYMORPHISM: Custom write() for reports
-    - ENCAPSULATION: Private report formatting
+    """Write a validation report dictionary to a JSON file.
+
+    The writer adds minimal metadata, writes a pretty-printed
+    JSON file, and tracks the output size and generation time.
     """
     
     def __init__(self, output_path: str):
-        """
-        Initialize validation report writer.
-        
-        Args:
-            output_path: Path to output file
-        """
+        """Initialize the writer with the desired output file path."""
         # INHERITANCE: Call parent
         super().__init__(output_path)
         
@@ -50,12 +39,12 @@ class ValidationReportWriter(BaseOutputWriter):
     # PROPERTY: Access to private data
     @property
     def report_data(self) -> Dict:
-        """Get report data (read-only)"""
+        """Return a copy of the last written report data."""
         return self.__report_data.copy()
     
     @property
     def generation_time(self) -> str:
-        """Get report generation time"""
+        """Return the ISO timestamp when the last report was generated."""
         return (
             self.__generation_time.isoformat()
             if self.__generation_time else None
@@ -63,21 +52,15 @@ class ValidationReportWriter(BaseOutputWriter):
     
     @property
     def report_size(self) -> int:
-        """Get report size in bytes"""
+        """Return the last written report size in bytes."""
         return self.__report_size
     
     # POLYMORPHISM: Override write method
     def write(self, data: Dict[str, Any]) -> bool:
-        """
-        Write validation report.
-        
-        POLYMORPHISM: Report-specific write logic.
-        
-        Args:
-            data: Report data dictionary
-            
-        Returns:
-            True if successful
+        """Write the provided report dict to the configured JSON file.
+
+        Enhances the report with metadata, writes the file and
+        updates internal statistics. Returns True on success.
         """
         try:
             # Enhance report with metadata
@@ -118,15 +101,7 @@ class ValidationReportWriter(BaseOutputWriter):
     
     # ENCAPSULATION: Private enhancer
     def __enhance_report(self, data: Dict) -> Dict:
-        """
-        Enhance report with metadata.
-        
-        Args:
-            data: Base report data
-            
-        Returns:
-            Enhanced report
-        """
+        """Return a shallow copy of ``data`` augmented with metadata."""
         enhanced = data.copy()
         
         # Add metadata if not present
@@ -143,18 +118,13 @@ class ValidationReportWriter(BaseOutputWriter):
     
     # ENCAPSULATION: Private helper
     def __ensure_directory(self):
-        """Ensure output directory exists"""
+        """Create parent directories for the output file if missing."""
         output_dir = Path(self.output_path).parent
         output_dir.mkdir(parents=True, exist_ok=True)
     
     # PROTECTED METHOD: Get statistics
     def _get_report_stats(self) -> Dict:
-        """
-        Get report writing statistics.
-        
-        Returns:
-            Statistics dictionary
-        """
+        """Return a dict with write stats and report metadata."""
         base_stats = self._get_write_stats()
         report_stats = {
             "format": self._format_name,
@@ -166,15 +136,7 @@ class ValidationReportWriter(BaseOutputWriter):
     
     # PUBLIC METHOD: Validate report structure
     def validate_report(self, data: Dict) -> bool:
-        """
-        Validate report structure before writing.
-        
-        Args:
-            data: Report data to validate
-            
-        Returns:
-            True if valid
-        """
+        """Quickly check that required top-level keys exist in the report."""
         required_keys = ["document", "summary", "validation_status"]
         
         return all(key in data for key in required_keys)

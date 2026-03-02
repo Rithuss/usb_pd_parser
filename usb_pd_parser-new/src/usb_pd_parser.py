@@ -1,5 +1,9 @@
-"""
-USB Power Delivery Specification Parser 
+"""usb_pd_parser
+Utilities for extracting text and validating structure from the
+USB Power Delivery PDF specification. Contains simple extractor
+classes and an application orchestrator that writes JSONL/JSON
+outputs. Docstrings are kept concise and reflect the implemented
+behavior.
 """
 import json
 import os
@@ -18,7 +22,11 @@ logger = logging.getLogger(__name__)
 
 
 class BaseEntity(ABC):
-    """Abstract base class demonstrating ABSTRACTION."""
+    """Abstract base for domain entities.
+
+    Holds a document title and arbitrary metadata. Subclasses should
+    implement ``validate()`` to perform entity-specific checks.
+    """
     
     def __init__(self, doc_title: str):
         self._doc_title = doc_title
@@ -40,7 +48,12 @@ class BaseEntity(ABC):
 
 
 class BaseExtractor(ABC):
-    """Abstract base class for all extractors."""
+    """Abstract base for extractors operating on page text.
+
+    Subclasses receive a mapping of page numbers to text and a
+    document title. They must implement ``extract()`` and may use
+    helper methods exposed on this base class.
+    """
     
     def __init__(self, text_data: Dict, doc_title: str):
         self._text_data = text_data
@@ -64,7 +77,13 @@ class BaseExtractor(ABC):
 
 
 class PDFParser:
-    """PDF Parser with enhanced page tracking."""
+    """Extract text from a PDF and track page-level statistics.
+
+    This class opens the PDF once, iterates pages, and returns a
+    dict mapping page numbers to extracted text. It also computes
+    simple coverage statistics (pages with/without content and
+    a success rate) accessible via ``get_page_coverage_stats()``.
+    """
     
     def __init__(self, pdf_path: str):
         self._pdf_path = pdf_path
@@ -83,12 +102,12 @@ class PDFParser:
         return self._doc_title
 
     def extract_text(self) -> Dict[int, str]:
-        """Extract text into a mapping of page number -> text.
+        """Extract text for every PDF page.
 
-        Keeps the existing behavior (tracking pages, printing
-        progress and summary) but reduces redundant attribute
-        access and clarifies intent via local variables and
-        explanatory comments.
+        Returns a dictionary keyed by 1-based page number with the
+        extracted text (empty string when extraction failed or no
+        text was present). Side effects: prints progress and stores
+        page statistics on the instance.
         """
 
         # Print a short header to indicate extraction start
@@ -114,13 +133,17 @@ class PDFParser:
         return text_mapping
     
     def _print_extraction_header(self):
-        """Print extraction header."""
+        """Print a short header indicating extraction start."""
         print("\n" + "="*60)
         print("PDF EXTRACTION STARTED")
         print("="*60)
     
     def _process_all_pages(self, pages) -> Dict[int, str]:
-        """Process all PDF pages and collect text data."""
+        """Iterate pages, extract text and record failures/empties.
+
+        Returns a page->text mapping and updates internal counters
+        used to compute extraction statistics.
+        """
         text_data = {}
         failed_pages = []
         empty_pages = []
@@ -129,7 +152,10 @@ class PDFParser:
             self._pages_processed += 1
             try:
                 extracted_text = page.extract_text()
-                result_text = self._process_single_page(extracted_text, page_number)
+                result_text = self._process_single_page(
+                    extracted_text,
+                    page_number
+                )
                 text_data[page_number] = result_text
                 
                 # Log empty pages for debugging
@@ -140,7 +166,9 @@ class PDFParser:
             except Exception as e:
                 failed_pages.append(page_number)
                 text_data[page_number] = ""
-                logger.warning(f"Page {page_number}: Extraction failed - {str(e)}")
+                logger.warning(
+                    f"Page {page_number}: Extraction failed - {str(e)}"
+                )
             
             self._print_progress(page_number)
         
@@ -150,32 +178,57 @@ class PDFParser:
         return text_data
     
     def _print_progress(self, page_number: int):
-        """Print progress update every 100 pages."""
+        """Print a periodic progress update (every 100 pages)."""
         if page_number % 100 == 0:
             print(f"Processed: {page_number}/{self._total_pages} pages...")
     
-    def _log_extraction_issues(self, empty_pages: List[int], failed_pages: List[int]):
-        """Log information about pages with extraction issues."""
+    def _log_extraction_issues(
+        self,
+        empty_pages: List[int],
+        failed_pages: List[int]
+    ):
+        """Log summaries and lists of empty or failed pages.
+
+        Also emits a final info/warning line verifying whether all
+        pages were attempted.
+        """
         if empty_pages:
-            logger.info(f"Pages with no text content: {len(empty_pages)} pages")
+            logger.info(
+                f"Pages with no text content: {len(empty_pages)} pages"
+            )
             if len(empty_pages) <= 20:
                 logger.debug(f"Empty page numbers: {empty_pages}")
             else:
                 logger.debug(f"First 20 empty pages: {empty_pages[:20]}")
         
         if failed_pages:
-            logger.error(f"Pages with extraction errors: {len(failed_pages)} pages")
-            logger.error(f"Failed page numbers: {failed_pages}")
+            logger.error(
+                f"Pages with extraction errors: {len(failed_pages)} pages"
+            )
+            logger.error(
+                f"Failed page numbers: {failed_pages}"
+            )
         
         # Ensure all pages were attempted
-        total_attempted = len(empty_pages) + len(failed_pages) + self._pages_with_content
+        total_attempted = (
+            len(empty_pages) + len(failed_pages) + self._pages_with_content
+        )
         if total_attempted == self._total_pages:
-            logger.info(f"✓ All {self._total_pages} pages processed successfully")
+            logger.info(
+                f"✓ All {self._total_pages} pages processed successfully"
+            )
         else:
-            logger.warning(f"⚠ Only {total_attempted}/{self._total_pages} pages processed")
+            logger.warning(
+                f"⚠ Only {total_attempted}/{self._total_pages} pages processed"
+            )
     
     def _process_single_page(self, text: str, page_number: int = None) -> str:
-        """Process single page text and track statistics."""
+        """Return page text if present and update counters.
+
+        Increments ``_pages_with_content`` when non-empty text is
+        found; otherwise increments ``_pages_without_content`` and
+        returns an empty string.
+        """
         if text and text.strip():
             self._pages_with_content += 1
             return text
@@ -184,7 +237,7 @@ class PDFParser:
             return ""
     
     def _calculate_extraction_stats(self):
-        """Calculate extraction statistics."""
+        """Compute a small stats dict used in summaries and reports."""
         if self._total_pages > 0:
             success_rate = (
                 self._pages_with_content / self._total_pages * 100
@@ -201,7 +254,7 @@ class PDFParser:
         }
     
     def _print_extraction_summary(self):
-        """Print extraction summary."""
+        """Print and log the computed extraction statistics."""
         stats = self._extraction_stats
         print(f"\nExtraction Complete:")
         print(f"  Pages with content: {self._pages_with_content}")
@@ -217,11 +270,18 @@ class PDFParser:
         logger.info(f"  Total pages: {stats['total_pages']}")
         logger.info(f"  Pages processed: {stats['pages_processed']}")
         logger.info(f"  Pages with content: {stats['pages_with_content']}")
-        logger.info(f"  Pages without content: {stats['pages_without_content']}")
+        logger.info(
+            f"  Pages without content: {stats['pages_without_content']}"
+        )
         logger.info(f"  Success rate: {stats['success_rate']}%")
     
     def get_page_coverage_stats(self) -> Dict:
-        """Return comprehensive page statistics."""
+        """Return page coverage statistics suitable for reports.
+
+        The returned dict contains totals, counts of covered/missing
+        pages and a coverage percentage as well as the extraction
+        success rate recorded during extraction.
+        """
         if self._total_pages > 0:
             coverage_pct = round(
                 (self._pages_with_content / self._total_pages * 100),
@@ -241,10 +301,18 @@ class PDFParser:
 
 
 class TOCExtractor(BaseExtractor):
-    """Table of Contents extractor."""
+    """Extract table-of-contents entries from page text.
+
+    The extractor looks for lines that start with a digit and treats
+    them as section entries. Each entry includes section id, title,
+    page number and hierarchy information.
+    """
     
     def extract(self) -> List[Dict]:
-        """Extract TOC entries with enhanced pattern matching."""
+        """Extract TOC entries from the provided page text mapping.
+
+        Returns a list of dicts, each representing a TOC entry.
+        """
         self._extracted_items = []
         
         for page_num, content in self._text_data.items():
@@ -254,13 +322,13 @@ class TOCExtractor(BaseExtractor):
         return self._extracted_items
     
     def _process_page_content(self, content: str, page_num: int):
-        """Process content from a single page."""
+        """Split page text into lines and handle each line."""
         lines = content.split("\n")
         for line in lines:
             self._handle_toc_line(line.strip(), page_num)
     
     def _handle_toc_line(self, line_stripped: str, page_num: int):
-        """Handle a single TOC line: skip empty or create entry if section."""
+        """Convert a single non-empty TOC line into an entry when valid."""
         if not line_stripped:
             return
         
@@ -269,7 +337,7 @@ class TOCExtractor(BaseExtractor):
             self._extracted_items.append(entry)
     
     def _is_section_line(self, line: str) -> bool:
-        """Check if line is a section."""
+        """Return True when a line appears to start with a section id."""
         return line and len(line) > 0 and line[0].isdigit()
     
     def _create_toc_entry(
@@ -277,7 +345,7 @@ class TOCExtractor(BaseExtractor):
         line: str,
         page_num: int
     ) -> Dict:
-        """Create TOC entry from line."""
+        """Build a TOC entry dict containing id, title and hierarchy."""
         section_id, title = self._parse_section_line(line)
         level = section_id.count('.') + 1
         parent_id = self._get_parent_id(section_id)
@@ -293,27 +361,36 @@ class TOCExtractor(BaseExtractor):
         }
     
     def _parse_section_line(self, line: str) -> Tuple[str, str]:
-        """Parse section line into ID and title."""
+        """Split a TOC line into a section id and the rest as title."""
         parts = line.split(maxsplit=1)
         section_id = parts[0].rstrip('.')
         title = parts[1] if len(parts) > 1 else ""
         return section_id, title
     
     def _get_parent_id(self, section_id: str) -> str:
-        """Get parent section ID."""
+        """Return the parent section id or None for top-level sections."""
         if '.' in section_id:
             return '.'.join(section_id.split('.')[:-1])
         return None
     
     def validate(self) -> bool:
+        """Basic validator (always returns True for this extractor)."""
         return True
 
 
 class ContentExtractor(BaseExtractor):
-    """Content extractor with enhanced extraction."""
+    """Extract numbered sections and their text content.
+
+    Detects lines that start with digits as section headers and groups
+    subsequent lines into that section until a new header is found.
+    """
     
     def extract(self) -> List[Dict]:
-        """Extract content with improved coverage."""
+        """Extract content sections from the page text mapping.
+
+        Returns a list of dicts containing `section_id` and combined
+        `content` for each detected section.
+        """
         self._extracted_items = []
         section_state = {"current": None, "buffer": []}
         
@@ -325,7 +402,7 @@ class ContentExtractor(BaseExtractor):
         return self._extracted_items
     
     def _process_page(self, content: str, page_num: int, section_state: Dict):
-        """Process content from a single page and update section state."""
+        """Split a page into lines and update the ongoing section buffer."""
         lines = content.split("\n")
         for line in lines:
             line_stripped = line.strip()
@@ -336,25 +413,27 @@ class ContentExtractor(BaseExtractor):
         line_stripped: str,
         section_state: Dict
     ):
-        """Handle a single content line: check for new section or append to buffer."""
+        """Detect section starts or append non-empty lines to buffer."""
         if self._is_new_section(line_stripped):
-            self._save_section(section_state["current"], section_state["buffer"])
+            self._save_section(
+                section_state["current"], section_state["buffer"]
+            )
             self._start_new_section(line_stripped, section_state)
         elif line_stripped:
             section_state["buffer"].append(line_stripped)
     
     def _is_new_section(self, line: str) -> bool:
-        """Check if line starts new section."""
+        """True when a line appears to start a new numbered section."""
         return line and len(line) > 0 and line[0].isdigit()
     
     def _start_new_section(self, line: str, section_state: Dict):
-        """Start new section and update state."""
+        """Initialize a new section id and reset the text buffer."""
         parts = line.split(maxsplit=1)
         section_state["current"] = parts[0].rstrip('.')
         section_state["buffer"] = [parts[1]] if len(parts) > 1 else []
     
     def _save_section(self, section_id: str, buffer: List[str]):
-        """Save section to extracted items."""
+        """Append a completed section (id + joined buffer) to results."""
         if section_id and buffer:
             content_text = " ".join(buffer).strip()
             if content_text:
@@ -365,10 +444,11 @@ class ContentExtractor(BaseExtractor):
                 })
     
     def validate(self) -> bool:
+        """Return True when at least one content section was extracted."""
         return len(self._extracted_items) > 0
     
     def get_content_stats(self) -> Dict:
-        """Get content quality metrics."""
+        """Return simple metrics about extracted content quality."""
         total = len(self._extracted_items)
         non_empty = self._count_non_empty_sections()
         avg_length = self._calculate_average_length(total)
@@ -383,14 +463,14 @@ class ContentExtractor(BaseExtractor):
         }
     
     def _count_non_empty_sections(self) -> int:
-        """Count sections with non-empty content."""
+        """Count how many extracted sections have non-empty content."""
         return sum(
             1 for item in self._extracted_items
             if item.get("content", "").strip()
         )
     
     def _calculate_average_length(self, total: int) -> float:
-        """Calculate average content length across sections."""
+        """Compute the mean content length (chars) per section."""
         if total == 0:
             return 0.0
         return sum(
@@ -399,14 +479,18 @@ class ContentExtractor(BaseExtractor):
         ) / total
     
     def _determine_quality_level(self, non_empty: int, total: int) -> str:
-        """Determine quality level based on content completeness."""
+        """Return a qualitative label ('Good' or 'Fair')."""
         if total == 0:
             return "Fair"
         return "Good" if non_empty > total * 0.9 else "Fair"
 
 
 class ValidationReportGenerator:
-    """Generates comprehensive validation report."""
+    """Create a structured validation report from extracted data.
+
+    Produces a dict with a summary, analyses for TOC and content,
+    and computed quality metrics suitable for JSON output.
+    """
     
     def __init__(
         self,
@@ -421,7 +505,7 @@ class ValidationReportGenerator:
         self._doc_title = doc_title
     
     def generate_report(self) -> Dict:
-        """Generate comprehensive validation report."""
+        """Assemble and return the validation report dictionary."""
         from datetime import datetime
         
         return {
@@ -437,7 +521,7 @@ class ValidationReportGenerator:
         }
     
     def _create_summary(self) -> Dict:
-        """Create report summary."""
+        """Return a small summary of counts and page coverage."""
         return {
             "total_toc_sections": len(self._toc_entries),
             "total_content_sections": len(self._content_entries),
@@ -446,7 +530,7 @@ class ValidationReportGenerator:
         }
     
     def _count_matched_sections(self) -> int:
-        """Count sections in both TOC and content."""
+        """Count how many section ids appear in both TOC and content."""
         toc_ids = {e["section_id"] for e in self._toc_entries}
         content_ids = {
             e["section_id"] for e in self._content_entries
@@ -454,7 +538,7 @@ class ValidationReportGenerator:
         return len(toc_ids.intersection(content_ids))
     
     def _analyze_toc(self) -> Dict:
-        """Analyze TOC structure."""
+        """Return simple stats about TOC hierarchy and counts."""
         levels = {}
         for entry in self._toc_entries:
             level = entry["level"]
@@ -468,7 +552,7 @@ class ValidationReportGenerator:
         }
     
     def _analyze_content(self) -> Dict:
-        """Analyze content extraction quality."""
+        """Return simple metrics about extracted content lengths and counts."""
         non_empty = [
             e for e in self._content_entries
             if e.get("content", "").strip()
@@ -491,13 +575,13 @@ class ValidationReportGenerator:
         }
     
     def _compute_average_content_length(self, total_chars: int) -> float:
-        """Compute average content length."""
+        """Compute average characters per content section."""
         if not self._content_entries:
             return 0.0
         return total_chars / len(self._content_entries)
     
     def _calculate_metrics(self) -> Dict:
-        """Calculate comprehensive quality metrics."""
+        """Compute derived metrics used to summarize overall quality."""
         page_coverage = self._page_stats.get("coverage_percentage", 0)
         content_quality = self._compute_content_quality()
         overall_score = (page_coverage + content_quality) / 2
@@ -510,7 +594,7 @@ class ValidationReportGenerator:
         }
     
     def _compute_content_quality(self) -> float:
-        """Compute content quality percentage."""
+        """Return percentage of content sections that contain text."""
         if not self._content_entries:
             return 0.0
         
@@ -521,7 +605,7 @@ class ValidationReportGenerator:
         return len(quality_sections) / len(self._content_entries) * 100
     
     def _determine_status(self) -> str:
-        """Determine overall validation status based on thresholds."""
+        """Map computed metrics to a small set of status labels."""
         coverage = self._page_stats.get("coverage_percentage", 0)
         toc_count = len(self._toc_entries)
         content_count = len(self._content_entries)
@@ -535,21 +619,32 @@ class ValidationReportGenerator:
         
         return "NEEDS_IMPROVEMENT"
     
-    def _meets_excellent_threshold(self, coverage: float, toc_count: int, content_count: int) -> bool:
-        """Check if metrics meet EXCELLENT criteria."""
-        return coverage >= 95 and toc_count > 5000 and content_count > 5000
+    def _meets_excellent_threshold(
+        self,
+        coverage: float,
+        toc_count: int,
+        content_count: int
+    ) -> bool:
+        """Return True when values meet the 'EXCELLENT' thresholds."""
+        return (
+            coverage >= 95 and toc_count > 5000 and content_count > 5000
+        )
     
     def _meets_good_threshold(self, coverage: float, toc_count: int) -> bool:
-        """Check if metrics meet GOOD criteria."""
+        """Return True when values meet the 'GOOD' thresholds."""
         return coverage >= 85 and toc_count > 1000
     
     def _meets_fair_threshold(self, coverage: float) -> bool:
-        """Check if metrics meet FAIR criteria."""
+        """Return True when coverage meets the 'FAIR' threshold."""
         return coverage >= 70
 
 
 class USBPDParserApp:
-    """Main application orchestrator."""
+    """Orchestrate parsing, extraction and validation for a PDF.
+
+    Responsible for running the end-to-end flow and saving outputs
+    to the configured output directory.
+    """
     
     def __init__(self, pdf_path: str, output_dir: str):
         self._pdf_path = pdf_path
@@ -564,7 +659,7 @@ class USBPDParserApp:
         self._validation_generator = None
 
     def run(self):
-        """Main execution orchestrator."""
+        """Execute the full parsing -> extraction -> validation flow."""
         self._print_header()
         
         text_data = self._parse_pdf()
@@ -582,19 +677,19 @@ class USBPDParserApp:
         )
     
     def _print_header(self):
-        """Print application header."""
+        """Print a small CLI header used at program start."""
         print("\n" + "="*60)
         print("USB PD PARSER - ENHANCED OOP VERSION")
         print("="*60)
     
     def _parse_pdf(self) -> Dict[int, str]:
-        """Parse PDF and return text data."""
+        """Parse the configured PDF and return page->text mapping."""
         print("\n[STEP 1] Parsing PDF...")
         self._parser = PDFParser(self._pdf_path)
         return self._parser.extract_text()
     
     def _extract_toc(self, text_data: Dict[int, str]) -> List[Dict]:
-        """Extract TOC entries."""
+        """Run the TOC extractor and persist results to JSONL."""
         print("\n[STEP 2] Extracting Table of Contents...")
         self._toc_extractor = TOCExtractor(
             text_data,
@@ -609,7 +704,7 @@ class USBPDParserApp:
         self,
         text_data: Dict[int, str]
     ) -> List[Dict]:
-        """Extract content entries."""
+        """Run the content extractor, persist results, and print stats."""
         print("\n[STEP 3] Extracting Specification Content...")
         self._content_extractor = ContentExtractor(
             text_data,
@@ -630,7 +725,7 @@ class USBPDParserApp:
         toc_entries: List[Dict],
         content_entries: List[Dict]
     ) -> Dict:
-        """Generate validation report."""
+        """Generate a validation report and save it as JSON."""
         print("\n[STEP 4] Generating Validation Report...")
         page_stats = self._parser.get_page_coverage_stats()
         
@@ -653,7 +748,7 @@ class USBPDParserApp:
         return validation_report
 
     def save_jsonl(self, data: List[Dict], filename: str):
-        """Save data in JSONL format."""
+        """Write a list of dicts to a JSONL file in the output dir."""
         try:
             os.makedirs(self._output_dir, exist_ok=True)
             filepath = os.path.join(self._output_dir, filename)
@@ -670,7 +765,7 @@ class USBPDParserApp:
             raise
     
     def save_json(self, data: Dict, filename: str):
-        """Save data in JSON format."""
+        """Write a dictionary to a JSON file in the output dir."""
         try:
             os.makedirs(self._output_dir, exist_ok=True)
             filepath = os.path.join(self._output_dir, filename)
@@ -690,7 +785,7 @@ class USBPDParserApp:
         content_count: int,
         validation: Dict
     ):
-        """Print comprehensive final summary."""
+        """Print a concise summary of extraction and validation results."""
         page_stats = self._parser.get_page_coverage_stats()
         metrics = validation.get("detailed_metrics", {})
         

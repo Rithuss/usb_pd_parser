@@ -92,7 +92,12 @@ class DataAnalyzer:
         
         return count, samples, total_length, non_empty
     
-    def _compute_spec_metrics(self, count: int, total_length: int, non_empty: int) -> Dict[str, float]:
+    def _compute_spec_metrics(
+        self,
+        count: int,
+        total_length: int,
+        non_empty: int
+    ) -> Dict[str, float]:
         """Compute metrics from raw statistics."""
         avg_length = total_length / count if count > 0 else 0
         quality_pct = non_empty / count * 100 if count > 0 else 0
@@ -328,8 +333,14 @@ class ReportPrinter:
         """Print success message based on status and score."""
         # Define success criteria in order of priority
         success_criteria = [
-            ("✓ SUCCESS: EXCELLENT extraction quality!", lambda s, o: s == "EXCELLENT" or o >= 90),
-            ("✓ SUCCESS: GOOD extraction quality!", lambda s, o: s == "GOOD" or o >= 75),
+            (
+                "✓ SUCCESS: EXCELLENT extraction quality!",
+                lambda s, o: s == "EXCELLENT" or o >= 90,
+            ),
+            (
+                "✓ SUCCESS: GOOD extraction quality!",
+                lambda s, o: s == "GOOD" or o >= 75,
+            ),
         ]
         
         for message, condition in success_criteria:
@@ -372,7 +383,10 @@ def _handle_missing_files(checker: FileChecker, files_status: Dict[str, bool]):
     print("="*70)
 
 
-def _process_and_print_report(checker: FileChecker, files_status: Dict[str, bool]):
+def _process_and_print_report(
+    checker: FileChecker,
+    files_status: Dict[str, bool]
+):
     """Process data and print the full report."""
     analyzer = DataAnalyzer(checker.toc_file, checker.spec_file)
     toc_count, toc_samples = analyzer.analyze_toc()
@@ -394,7 +408,10 @@ def _process_and_print_report(checker: FileChecker, files_status: Dict[str, bool
     printer.print_final_status(toc_count, spec_count, val_analyzer.data)
 
 
-def _print_validation_analysis(printer: ReportPrinter, val_analyzer: ValidationAnalyzer):
+def _print_validation_analysis(
+    printer: ReportPrinter,
+    val_analyzer: ValidationAnalyzer
+):
     """Print detailed validation analysis."""
     print("\n📋 VALIDATION REPORT ANALYSIS:")
     printer.print_page_coverage(val_analyzer.get_page_coverage())

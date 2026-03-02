@@ -1,24 +1,19 @@
-"""
-Factories Module
-Implements Factory Pattern for creating objects.
+"""Factory helpers for parsers, writers and validators.
 
-OOP Concepts:
-- Factory Pattern
-- @staticmethod decorator
-- Dependency Injection
-- Type-safe object creation
+Provides simple registries to register and instantiate components
+by string key. Factories return new instances of registered
+classes and expose helper methods to inspect available types.
 """
 from typing import Dict, Optional, Type
 from pathlib import Path
 
 
 class ParserFactory:
-    """
-    Factory for creating parser instances (Factory Pattern).
-    
-    OOP Principles:
-    - FACTORY PATTERN: Creates objects without specifying exact class
-    - ENCAPSULATION: Hides object creation complexity
+    """Registry and factory for parser classes.
+
+    Register parser classes with ``register_parser`` and create
+    instances with ``create_parser`` by passing the registered
+    type name and a `doc_title`.
     """
     
     # ENCAPSULATION: Private registry of parser types
@@ -26,30 +21,14 @@ class ParserFactory:
     
     @staticmethod
     def register_parser(parser_type: str, parser_class: Type):
-        """
-        Register a parser class (DEPENDENCY INJECTION).
-        
-        Args:
-            parser_type: Type identifier (e.g., 'toc', 'spec')
-            parser_class: Parser class to register
-        """
+        """Register a parser class under a short string key."""
         ParserFactory.__parser_registry[parser_type] = parser_class
     
     @staticmethod
     def create_parser(parser_type: str, doc_title: str, **kwargs):
-        """
-        Create parser instance (FACTORY PATTERN).
-        
-        Args:
-            parser_type: Type of parser to create
-            doc_title: Document title
-            **kwargs: Additional arguments for parser
-            
-        Returns:
-            Parser instance
-            
-        Raises:
-            ValueError: If parser type not registered
+        """Instantiate a regis                                                                  tered parser class.
+
+        Raises ValueError when the type is unknown.
         """
         parser_class = ParserFactory.__parser_registry.get(parser_type)
         
@@ -65,39 +44,25 @@ class ParserFactory:
     
     @staticmethod
     def get_registered_parsers() -> list:
-        """
-        Get list of registered parser types.
-        
-        Returns:
-            List of parser type names
-        """
+        """Return a list of registered parser type names."""
         return list(ParserFactory.__parser_registry.keys())
     
     @staticmethod
     def is_registered(parser_type: str) -> bool:
-        """
-        Check if parser type is registered.
-        
-        Args:
-            parser_type: Parser type to check
-            
-        Returns:
-            True if registered
-        """
+        """Return True when `parser_type` has been registered."""
         return parser_type in ParserFactory.__parser_registry
     
-    # SPECIAL METHOD: String representation
     def __str__(self) -> str:
-        """Human-readable representation"""
+        """Return a short description listing registered parser keys."""
         types = ', '.join(ParserFactory.__parser_registry.keys())
         return f"ParserFactory(types=[{types}])"
 
 
 class WriterFactory:
-    """
-    Factory for creating writer instances (Factory Pattern).
-    
-    OOP: Encapsulates writer object creation
+    """Registry and factory for writer classes.
+
+    Register writers with ``register_writer`` and create instances
+    with ``create_writer`` by providing a type key and output path.
     """
     
     # ENCAPSULATION: Private registry
@@ -105,13 +70,7 @@ class WriterFactory:
     
     @staticmethod
     def register_writer(writer_type: str, writer_class: Type):
-        """
-        Register a writer class.
-        
-        Args:
-            writer_type: Type identifier (e.g., 'jsonl', 'json')
-            writer_class: Writer class to register
-        """
+        """Register a writer class under a short string key."""
         WriterFactory.__writer_registry[writer_type] = writer_class
     
     @staticmethod
@@ -120,20 +79,7 @@ class WriterFactory:
         output_path: str,
         **kwargs
     ):
-        """
-        Create writer instance (FACTORY PATTERN).
-        
-        Args:
-            writer_type: Type of writer to create
-            output_path: Output file path
-            **kwargs: Additional arguments
-            
-        Returns:
-            Writer instance
-            
-        Raises:
-            ValueError: If writer type not registered
-        """
+        """Instantiate a registered writer class for the given path."""
         writer_class = WriterFactory.__writer_registry.get(writer_type)
         
         if writer_class is None:
@@ -147,27 +93,22 @@ class WriterFactory:
     
     @staticmethod
     def get_registered_writers() -> list:
-        """Get list of registered writer types"""
+        """Return a list of registered writer type names."""
         return list(WriterFactory.__writer_registry.keys())
     
     @staticmethod
     def is_registered(writer_type: str) -> bool:
-        """Check if writer type is registered"""
+        """Return True when `writer_type` has been registered."""
         return writer_type in WriterFactory.__writer_registry
     
-    # SPECIAL METHOD
     def __str__(self) -> str:
-        """String representation"""
+        """Return a short description listing registered writer keys."""
         types = ', '.join(WriterFactory.__writer_registry.keys())
         return f"WriterFactory(types=[{types}])"
 
 
 class ValidatorFactory:
-    """
-    Factory for creating validator instances (Strategy Pattern).
-    
-    OOP: Creates validation strategies dynamically
-    """
+    """Registry and factory for validator strategy classes."""
     
     # ENCAPSULATION: Private registry
     __validator_registry: Dict[str, Type] = {}
@@ -177,31 +118,16 @@ class ValidatorFactory:
         validator_type: str,
         validator_class: Type
     ):
-        """
-        Register a validator class.
-        
-        Args:
-            validator_type: Type identifier
-            validator_class: Validator class to register
-        """
+        """Register a validator class under a short string key."""
         ValidatorFactory.__validator_registry[validator_type] = (
             validator_class
         )
     
     @staticmethod
     def create_validator(validator_type: str, **kwargs):
-        """
-        Create validator instance (FACTORY PATTERN).
-        
-        Args:
-            validator_type: Type of validator to create
-            **kwargs: Additional arguments
-            
-        Returns:
-            Validator instance
-            
-        Raises:
-            ValueError: If validator type not registered
+        """Instantiate a registered validator class.
+
+        Raises ValueError when the type is unknown.
         """
         validator_class = ValidatorFactory.__validator_registry.get(
             validator_type
@@ -220,17 +146,16 @@ class ValidatorFactory:
     
     @staticmethod
     def get_registered_validators() -> list:
-        """Get list of registered validator types"""
+        """Return a list of registered validator type names."""
         return list(ValidatorFactory.__validator_registry.keys())
     
     @staticmethod
     def is_registered(validator_type: str) -> bool:
-        """Check if validator type is registered"""
+        """Return True when `validator_type` has been registered."""
         return validator_type in ValidatorFactory.__validator_registry
     
-    # SPECIAL METHOD
     def __str__(self) -> str:
-        """String representation"""
+        """Return a short description listing registered validator keys."""
         types = ', '.join(
             ValidatorFactory.__validator_registry.keys()
         )
@@ -243,29 +168,23 @@ def create_component(
     factory_type: str,
     **kwargs
 ):
-    """
-    Universal component creator (FACTORY PATTERN).
-    
-    Args:
-        component_type: Type of component (parser/writer/validator)
-        factory_type: Specific type to create
-        **kwargs: Arguments for component
-        
-    Returns:
-        Component instance
+    """Convenience wrapper to create a component from the named factory.
+
+    `component_type` must be one of: 'parser', 'writer', 'validator'.
+    The function dispatches to the appropriate factory create method.
     """
     factories = {
         'parser': ParserFactory,
         'writer': WriterFactory,
         'validator': ValidatorFactory
     }
-    
+
     factory = factories.get(component_type)
     if factory is None:
         raise ValueError(
             f"Unknown component type: {component_type}"
         )
-    
+
     return factory.create_parser(factory_type, **kwargs)
 
 

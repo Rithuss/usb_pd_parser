@@ -1,37 +1,39 @@
-"""
-USB PD Table of Contents Parser
-Demonstrates INHERITANCE and POLYMORPHISM.
+"""Table of Contents parser for USB PD specification.
 
-OOP Concepts:
-- INHERITANCE: Inherits from BaseParser
-- POLYMORPHISM: Overrides parse() and validate()
-- ENCAPSULATION: Private methods for internal logic
+Extracts numbered TOC entries from page text and tracks
+hierarchy information like levels and parent relationships.
 """
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from typing import Dict, List
+from typing import Dict, List, Union
 from core.base_classes import BaseParser
 
 
-class USBPDTOCParser(BaseParser):
-    """
-    Table of Contents parser for USB PD specification.
+class TOCParsingState:
+    """Holds current parsing state during TOC extraction.
     
-    OOP Principles:
-    - INHERITANCE: Extends BaseParser
-    - POLYMORPHISM: Custom implementation of parse()
-    - ENCAPSULATION: Private extraction methods
+    Tracks current page, collected entries, hierarchy levels,
+    and maximum depth found during parsing.
+    """
+    
+    def __init__(self):
+        self.current_page = None
+        self.entries = []
+        self.hierarchy_levels = {}
+        self.max_depth = 0
+
+
+class USBPDTOCParser(BaseParser):
+    """Extracts Table of Contents entries from specification text.
+    
+    Finds lines starting with section numbers, extracts titles and page numbers,
+    and calculates hierarchy levels and parent relationships.
     """
     
     def __init__(self, doc_title: str):
-        """
-        Initialize TOC parser.
-        
-        Args:
-            doc_title: Document title
-        """
+        """Set up the TOC parser with document title."""
         # INHERITANCE: Call parent constructor
         super().__init__(doc_title)
         
@@ -47,66 +49,70 @@ class USBPDTOCParser(BaseParser):
     # PROPERTY: Read-only access
     @property
     def toc_entries(self) -> List[Dict]:
-        """Get TOC entries (read-only)"""
+        """Get list of all parsed TOC entries."""
         return self.__toc_entries.copy()
     
     @property
     def max_depth(self) -> int:
-        """Get maximum hierarchy depth"""
+        """Get the deepest hierarchy level found."""
         return self.__max_depth
     
     @property
     def hierarchy_levels(self) -> Dict[int, int]:
-        """Get sections per hierarchy level"""
+        """Get count of sections at each hierarchy level."""
         return self.__hierarchy_levels.copy()
     
     # POLYMORPHISM: Override abstract method
     def parse(self, text_data: Dict[int, str]) -> List[Dict]:
-        """
-        Parse Table of Contents from text data.
+        """Extract TOC entries from page text data.
         
-        POLYMORPHISM: TOC-specific parsing implementation.
-        
-        Args:
-            text_data: Dictionary of page_num -> text
-            
-        Returns:
-            List of TOC entry dictionaries
+        Processes each page, finds TOC lines, and builds hierarchy.
+        Returns list of TOC entry dictionaries with metadata.
         """
-        entries = []
+        self._state = TOCParsingState()
         
         for page_num, content in text_data.items():
             if not content:
                 continue
             
-            # Parse each line for TOC entries
-            for line in content.split("\n"):
-                entry = self.__parse_toc_line(line, page_num)
-                if entry:
-                    entries.append(entry)
-                    self._pattern_matched += 1
-                    
-                    # Track hierarchy
-                    level = entry["level"]
-                    self.__hierarchy_levels[level] = (
-                        self.__hierarchy_levels.get(level, 0) + 1
-                    )
-                    self.__max_depth = max(self.__max_depth, level)
+            self._process_page_content(content, page_num)
         
         # Store results
-        self.__toc_entries = entries
-        self._mark_as_parsed(entries)
+        self.__toc_entries = self._state.entries
+        self.__hierarchy_levels = self._state.hierarchy_levels
+        self.__max_depth = self._state.max_depth
+        self._mark_as_parsed(self.__toc_entries)
         
-        return entries
+        return self.__toc_entries
+    
+    def _process_page_content(self, content: str, page_num: int):
+        """Process all lines in a page for TOC entries."""
+        self._state.current_page = page_num
+        for line in content.split("\n"):
+            self._process_toc_line(line)
+    
+    def _process_toc_line(self, line: str):
+        """Check if a line contains a TOC entry and add it."""
+        entry = self._parse_toc_line(line)
+        if entry:
+            self._add_toc_entry(entry)
+    
+    def _add_toc_entry(self, entry: Dict):
+        """Add a TOC entry and update hierarchy statistics."""
+        self._state.entries.append(entry)
+        self._pattern_matched += 1
+        self._update_hierarchy(entry["level"])
+    
+    def _update_hierarchy(self, level: int):
+        """Update counts for hierarchy levels."""
+        self._state.hierarchy_levels[level] = (
+            self._state.hierarchy_levels.get(level, 0) + 1
+        )
+        self._state.max_depth = max(self._state.max_depth, level)
     
     # POLYMORPHISM: Override abstract method
     def validate(self) -> bool:
-        """
-        Validate TOC parsing results.
-        
-        Returns:
-            True if valid
-        """
+        """Check if parsing was successful and hierarchy looks reasonable."""
         if not self.is_parsed:
             return False
         
@@ -120,21 +126,8 @@ class USBPDTOCParser(BaseParser):
         return True
     
     # ENCAPSULATION: Private helper method
-    def __parse_toc_line(
-        self,
-        line: str,
-        page_num: int
-    ) -> Dict or None:
-        """
-        Parse a single TOC line (ENCAPSULATION).
-        
-        Args:
-            line: Line of text
-            page_num: Current page number
-            
-        Returns:
-            TOC entry dict or None
-        """
+    def _parse_toc_line(self, line: str) -> Union[Dict, None]:
+        """Extract TOC entry data from a line, or return None if not a TOC line."""
         line_stripped = line.strip()
         
         # Skip empty lines
@@ -154,29 +147,21 @@ class USBPDTOCParser(BaseParser):
         level = section_id.count('.') + 1
         
         # Calculate parent ID
-        parent_id = self.__calculate_parent_id(section_id)
+        parent_id = self._calculate_parent_id(section_id)
         
         return {
             "doc_title": self.doc_title,
             "section_id": section_id,
             "title": title,
-            "page": page_num,
+            "page": self._state.current_page,
             "level": level,
             "parent_id": parent_id,
             "full_path": f"{section_id} {title}"
         }
     
     # ENCAPSULATION: Private helper
-    def __calculate_parent_id(self, section_id: str) -> str or None:
-        """
-        Calculate parent section ID (ENCAPSULATION).
-        
-        Args:
-            section_id: Section identifier
-            
-        Returns:
-            Parent section ID or None
-        """
+    def _calculate_parent_id(self, section_id: str) -> Union[str, None]:
+        """Find the parent section ID in the hierarchy."""
         if '.' not in section_id:
             return None
         
@@ -186,12 +171,7 @@ class USBPDTOCParser(BaseParser):
     
     # PROTECTED METHOD: Get parsing statistics
     def _get_parse_stats(self) -> Dict:
-        """
-        Get TOC parsing statistics.
-        
-        Returns:
-            Statistics dictionary
-        """
+        """Get parsing statistics and metadata."""
         base_stats = self._get_metadata()
         toc_stats = {
             "parser_type": self._parser_type,
@@ -204,17 +184,17 @@ class USBPDTOCParser(BaseParser):
     
     # SPECIAL METHOD: Iteration support
     def __iter__(self):
-        """Iterate over TOC entries"""
+        """Iterate over parsed TOC entries."""
         return iter(self.__toc_entries)
     
     # SPECIAL METHOD: Item access
     def __getitem__(self, index: int) -> Dict:
-        """Get TOC entry by index"""
+        """Return the TOC entry at the given index."""
         return self.__toc_entries[index]
     
     # SPECIAL METHOD: Contains check
     def __contains__(self, section_id: str) -> bool:
-        """Check if section ID exists in TOC"""
+        """Return True if a section id exists among parsed entries."""
         return any(
             entry["section_id"] == section_id
             for entry in self.__toc_entries

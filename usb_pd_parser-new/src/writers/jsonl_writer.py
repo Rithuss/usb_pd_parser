@@ -1,11 +1,9 @@
-"""
-JSONL Writer
-Writes data in JSONL format (one JSON per line).
+"""JSONL writer utilities.
 
-OOP Concepts:
-- INHERITANCE: Inherits from BaseOutputWriter
-- POLYMORPHISM: Custom write() implementation
-- ENCAPSULATION: Private file operations
+Write lists of dictionaries as JSON Lines (one JSON object per
+line). Provides simple write/append operations and exposes write
+statistics. Docstrings are concise and reflect the implemented
+behavior.
 """
 import sys
 import os
@@ -18,22 +16,14 @@ from core.base_classes import BaseOutputWriter
 
 
 class JSONLWriter(BaseOutputWriter):
-    """
-    JSONL format writer.
-    
-    OOP Principles:
-    - INHERITANCE: Extends BaseOutputWriter
-    - POLYMORPHISM: Custom write() implementation
-    - ENCAPSULATION: Private write operations
+    """Writer for JSON Lines (JSONL) format.
+
+    Writes each dictionary as a compact JSON line. Tracks lines
+    and bytes written and supports appending to existing files.
     """
     
     def __init__(self, output_path: str):
-        """
-        Initialize JSONL writer.
-        
-        Args:
-            output_path: Path to output file
-        """
+        """Initialize writer with the target output file path."""
         # INHERITANCE: Call parent constructor
         super().__init__(output_path)
         
@@ -49,31 +39,25 @@ class JSONLWriter(BaseOutputWriter):
     # PROPERTY: Additional properties
     @property
     def lines_written(self) -> int:
-        """Get number of lines written"""
+        """Return the number of lines successfully written."""
         return self.__lines_written
     
     @property
     def bytes_written(self) -> int:
-        """Get number of bytes written"""
+        """Return the total number of bytes written to the file."""
         return self.__bytes_written
     
     @property
     def format_name(self) -> str:
-        """Get format name"""
+        """Return the output format name (JSONL)."""
         return self._format_name
     
     # POLYMORPHISM: Override abstract write method
     def write(self, data: List[Dict]) -> bool:
-        """
-        Write data in JSONL format.
-        
-        POLYMORPHISM: JSONL-specific implementation.
-        
-        Args:
-            data: List of dictionaries to write
-            
-        Returns:
-            True if successful
+        """Overwrite the output file with `data` in JSONL format.
+
+        Returns True on success; on failure the error is recorded
+        and False is returned.
         """
         try:
             # Ensure output directory exists
@@ -104,25 +88,13 @@ class JSONLWriter(BaseOutputWriter):
     
     # ENCAPSULATION: Private helper
     def __ensure_directory(self):
-        """
-        Ensure output directory exists.
-        
-        ENCAPSULATION: Private directory management.
-        """
+        """Create parent directories for the output file if missing."""
         output_dir = Path(self.output_path).parent
         output_dir.mkdir(parents=True, exist_ok=True)
     
     # ENCAPSULATION: Private formatter
     def __format_json_line(self, data: Dict) -> str:
-        """
-        Format data as JSON line.
-        
-        Args:
-            data: Dictionary to format
-            
-        Returns:
-            JSON string
-        """
+        """Serialize a dictionary to a JSON string for a single line."""
         return json.dumps(
             data,
             ensure_ascii=self._ensure_ascii,
@@ -131,12 +103,7 @@ class JSONLWriter(BaseOutputWriter):
     
     # PROTECTED METHOD: Get write statistics
     def _get_write_details(self) -> Dict:
-        """
-        Get detailed write statistics.
-        
-        Returns:
-            Statistics dictionary
-        """
+        """Return detailed write statistics as a dictionary."""
         base_stats = self._get_write_stats()
         jsonl_stats = {
             "format": self._format_name,
@@ -149,14 +116,10 @@ class JSONLWriter(BaseOutputWriter):
     
     # PUBLIC METHOD: Append to existing file
     def append(self, data: List[Dict]) -> bool:
-        """
-        Append data to existing JSONL file.
-        
-        Args:
-            data: Data to append
-            
-        Returns:
-            True if successful
+        """Append entries to an existing JSONL file.
+
+        Returns True on success; errors are recorded and False is
+        returned on failure.
         """
         try:
             with open(
@@ -177,17 +140,16 @@ class JSONLWriter(BaseOutputWriter):
     
     # SPECIAL METHOD: Context manager support
     def __enter__(self):
-        """Context manager entry"""
+        """Return self to support usage as a context manager."""
         return self
     
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """Context manager exit"""
-        # Could add cleanup here
+        """Context manager exit (no cleanup required)."""
         pass
     
     # SPECIAL METHOD: String representation
     def __str__(self) -> str:
-        """Human-readable representation"""
+        """Return a short human-readable description of the writer."""
         return (
             f"JSONLWriter("
             f"path='{self.output_path}', "
